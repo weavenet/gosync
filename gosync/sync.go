@@ -37,18 +37,22 @@ func (s *SyncPair) syncDirToS3() bool {
 
     region := aws.USEast
     s3 := s3.New(s.Auth, region)
+    s3url := S3Url{Url: s.Target}
 
-    for k, _ := range sourceFiles {
-        if targetFiles[k] != sourceFiles[k] {
-            fmt.Printf("Syncing %s\n", k)
-            s3url := S3Url{Url: s.Target}
-            st := []string{s.Source, k}
-            key := strings.Join(st, "/")
+    for file, _ := range sourceFiles {
+fmt.Printf("%s\n", file)
+fmt.Printf("%s\n", targetFiles)
+fmt.Printf("%s\n", sourceFiles)
+fmt.Printf("%s\n", targetFiles[file])
+fmt.Printf("%s\n", sourceFiles[file])
+        if targetFiles[file] != sourceFiles[file] {
+            fmt.Printf("Syncing %s\n", file)
+            filePath := strings.Join([]string{s.Source, file}, "/")
             bucket := s3.Bucket(s3url.Bucket())
-            pt := strings.Join([]string{s.Target, k}, "/")
-            Put(bucket, pt, key)
+            fmt.Printf("%s syncing to %s", filePath, file)
+            Put(bucket, file, filePath)
         } else {
-            fmt.Printf("Not Syncing %s\n", k)
+            fmt.Printf("Not Syncing %s\n", file)
         }
     }
     return true
