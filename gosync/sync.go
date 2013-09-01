@@ -31,10 +31,21 @@ func (s *SyncPair) Sync() bool {
     }
 }
 
-func lookupBucket(bucket string, auth aws.Auth) *s3.Bucket {
-    region := aws.USEast
-    s3 := s3.New(auth, region)
-    return s3.Bucket(bucket)
+func lookupBucket(bucketName string, auth aws.Auth) *s3.Bucket {
+    var bucket s3.Bucket
+    for r, _ := range aws.Regions {
+        fmt.Printf("Looking for bucket in %s.\n", r)
+        s3 := s3.New(auth, aws.Regions[r])
+        b := s3.Bucket(bucketName)
+        _, err := b.List("","","",0)
+        if err == nil {
+            bucket = *b
+            fmt.Printf("Found bucket in %s.\n", r)
+        } else if err.Error() == "Get : 301 response missing Location header" {
+            continue
+        }
+    }
+    return &bucket
 }
 
 func (s *SyncPair) syncDirToS3() bool {
