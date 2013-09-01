@@ -13,6 +13,8 @@ func main() {
     app.Name = "gosync"
     app.Usage = "CLI for S3"
 
+    const concurrent = 20
+
     app.Commands = []cli.Command{
       {
         Name:        "sync",
@@ -32,7 +34,7 @@ func main() {
 
           fmt.Printf("Syncing %s with %s\n", arg0, arg1)
 
-          sync := gosync.SyncPair{arg0, arg1, auth}
+          sync := gosync.SyncPair{arg0, arg1, auth, concurrent}
           result := sync.Sync()
           if result == true {
               fmt.Printf("Syncing completed succesfully.")
