@@ -46,7 +46,10 @@ func (s *SyncPair) syncDirToS3() bool {
             filePath := strings.Join([]string{s.Source, file}, "/")
             bucket := s3.Bucket(s3url.Bucket())
             fmt.Printf("Syncing %s to %s in bucket %s.\n", filePath, file, bucket.Name)
-            Put(bucket, file, filePath)
+            err := Put(bucket, file, filePath)
+            if err != nil {
+               panic(err.Error())
+            }
         }
     }
     return true
@@ -65,7 +68,18 @@ func (s *SyncPair) syncS3ToDir() bool {
             filePath := strings.Join([]string{s.Target, file}, "/")
             bucket := s3.Bucket(s3url.Bucket())
             fmt.Printf("Syncing %s from bucket %s to %s.\n", file, bucket.Name, filePath)
-            Get(filePath, bucket, file)
+            fmt.Printf("Base: %s\n", filepath.Dir(filePath))
+            if filepath.Dir(filePath) != "." {
+               err := os.MkdirAll(filepath.Dir(filePath), 0755)
+               if err != nil {
+                  panic(err.Error())
+               }
+            }
+
+            err := Get(filePath, bucket, file)
+            if err != nil {
+               panic(err.Error())
+            }
         }
     }
     return true
@@ -100,8 +114,13 @@ func loadLocalFiles(path string) map[string]string {
     files := map[string]string{}
     filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
         if !info.IsDir() {
-            relativePath := strings.TrimPrefix(filePath, path)
-            fmt.Printf("For some reason not loading all files.  Saving: %s\n", relativePath)
+            var relativePath string
+
+            if path == "." {
+                relativePath = filePath
+            } else {
+                relativePath = strings.TrimPrefix(filePath, path)
+            }
 
             buf, err := ioutil.ReadFile(filePath)
             if err != nil {
