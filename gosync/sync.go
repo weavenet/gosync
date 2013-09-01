@@ -197,7 +197,7 @@ func waitForRoutines(routines []chan string) {
 
 func relativePath(path string, filePath string) string {
     if path == "." {
-        return filePath
+        return strings.TrimPrefix(filePath, "/")
     } else {
         return strings.TrimPrefix(strings.TrimPrefix(filePath, path), "/")
     }
