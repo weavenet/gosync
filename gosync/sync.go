@@ -47,7 +47,8 @@ func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket) {
         } else if err.Error() == "Get : 301 response missing Location header" {
             continue
         } else {
-            return nil
+            fmt.Printf("Invalid bucket.\n")
+            os.Exit(1)
         }
     }
     fmt.Printf("Found bucket in %s.\n", bucket.S3.Region.Name)
