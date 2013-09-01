@@ -31,22 +31,26 @@ func (s *SyncPair) Sync() bool {
     }
 }
 
+func lookupBucket(bucket string, auth aws.Auth) *s3.Bucket {
+    region := aws.USEast
+    s3 := s3.New(auth, region)
+    return s3.Bucket(bucket)
+}
+
 func (s *SyncPair) syncDirToS3() bool {
     sourceFiles := loadLocalFiles(s.Source)
     targetFiles := loadS3Files(s.Target, s.Auth)
 
-    region := aws.USEast
-    s3 := s3.New(s.Auth, region)
-    s3url := S3Url{Url: s.Target}
-
     var routines []chan string
+
+    s3url := S3Url{Url: s.Target}
+    bucket := lookupBucket(s3url.Bucket(), s.Auth)
 
     count := 0
     for file, _ := range sourceFiles {
         if targetFiles[file] != sourceFiles[file] {
             count++
             filePath := strings.Join([]string{s.Source, file}, "/")
-            bucket := s3.Bucket(s3url.Bucket())
             fmt.Printf("Starting sync: %s -> s3://%s/%s.\n", filePath, bucket.Name, file)
             wait := make(chan string)
             keyPath := strings.Join([]string{s3url.Key(), file}, "/")
@@ -68,11 +72,10 @@ func (s *SyncPair) syncS3ToDir() bool {
     sourceFiles := loadS3Files(s.Source, s.Auth)
     targetFiles := loadLocalFiles(s.Target)
 
-    region := aws.USEast
-    s3 := s3.New(s.Auth, region)
-    s3url := S3Url{Url: s.Source}
-
     var routines []chan string
+
+    s3url := S3Url{Url: s.Source}
+    bucket := lookupBucket(s3url.Bucket(), s.Auth)
 
     count := 0
 
@@ -80,7 +83,6 @@ func (s *SyncPair) syncS3ToDir() bool {
         if targetFiles[file] != sourceFiles[file] {
             count++
             filePath := strings.Join([]string{s.Target, file}, "/")
-            bucket := s3.Bucket(s3url.Bucket())
             fmt.Printf("Starting sync: s3://%s/%s -> %s.\n", bucket.Name, file, filePath)
             if filepath.Dir(filePath) != "." {
                err := os.MkdirAll(filepath.Dir(filePath), 0755)
@@ -109,9 +111,7 @@ func loadS3Files(url string, auth aws.Auth) map[string]string {
           s3url := S3Url{Url: url}
           path  := s3url.Path()
 
-          region := aws.USEast
-          s := s3.New(auth, region)
-          bucket := s.Bucket(s3url.Bucket())
+          bucket := lookupBucket(s3url.Bucket(), auth)
 
           data, err := bucket.List(path, "", "", 0)
           if err != nil {
@@ -129,15 +129,9 @@ func loadLocalFiles(path string) map[string]string {
     files := map[string]string{}
     filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
         if !info.IsDir() {
-            var relativePath string
+            p := relativePath(path, filePath)
 
-            if path == "." {
-                relativePath = filePath
-            } else {
-                relativePath = strings.TrimPrefix(strings.TrimPrefix(filePath, path), "/")
-            }
-
-            buf, err := ioutil.ReadFile(filePath)
+            buf, err := ioutil.ReadFile(p)
             if err != nil {
                 panic(err)
             }
@@ -145,7 +139,7 @@ func loadLocalFiles(path string) map[string]string {
             hasher := md5.New()
             hasher.Write(buf)
             md5sum := fmt.Sprintf("%x", hasher.Sum(nil))
-            files[relativePath] = md5sum
+            files[p] = md5sum
         }
         return nil
     })
@@ -160,12 +154,16 @@ func (s *SyncPair) validPair() bool {
 }
 
 func validTarget(target string) bool {
+    // Check for local file
     if pathExists(target) {
         return true
     }
+
+    // Check for valid s3 url
     if validS3Url(target) {
         return true
     }
+
     return false
 }
 
@@ -194,5 +192,13 @@ func waitForRoutines(routines []chan string) {
     for _, r := range routines {
         msg := <- r
         fmt.Printf("%s\n", msg)
+    }
+}
+
+func relativePath(path string, filePath string) string {
+    if path == "." {
+        return filePath
+    } else {
+        return strings.TrimPrefix(strings.TrimPrefix(filePath, path), "/")
     }
 }
