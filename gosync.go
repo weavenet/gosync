@@ -16,8 +16,8 @@ func main() {
     app.Commands = []cli.Command{
       {
         Name:        "sync",
-        Usage:       "gosync sync LOCAL_DIR s3://BUCKET/KEY",
-        Description: "Sync local dir with S3 URL.",
+        Usage:       "gosync sync SOURCE TARGET",
+        Description: "Sync directories to / from S3 bucket.",
         Action: func(c *cli.Context) {
           if len(c.Args()) < 2 {
              fmt.Printf("S3 URL and local directory required.")

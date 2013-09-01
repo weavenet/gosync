@@ -24,4 +24,12 @@ Set environment variables:
 
 # Usage
 
-    gosync source target
+    gosync sync source target
+
+## From local directory to S3
+
+    gosync sync /files s3://bucket/files
+
+## From S3 to local directory
+
+    gosync sync s3://bucket/files /files
