@@ -55,18 +55,12 @@ func (s *SyncPair) syncDirToS3() bool {
         }
         if count > s.Concurrent {
             fmt.Printf("Maxiumum concurrent threads running. Waiting.\n")
-            for _, r := range routines {
-                msg := <- r
-                fmt.Printf("%s\n", msg)
-            }
+            waitForRoutines(routines)
             count = 0
             routines = routines[0:0]
         }
     }
-    for _, r := range routines {
-        msg := <- r
-        fmt.Printf("%s\n", msg)
-    }
+    waitForRoutines(routines)
     return true
 }
 
@@ -101,19 +95,12 @@ func (s *SyncPair) syncS3ToDir() bool {
         }
         if count > s.Concurrent {
             fmt.Printf("Maxiumum concurrent threads running. Waiting.\n")
-            for _, r := range routines {
-                msg := <-r
-                fmt.Printf("%s\n", msg)
-            }
+            waitForRoutines(routines)
             count = 0
             routines = routines[0:0]
         }
     }
     waitForRoutines(routines)
-    for _, r := range routines {
-        msg := <- r
-        fmt.Printf("%s\n", msg)
-    }
     return true
 }
 
