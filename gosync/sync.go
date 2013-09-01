@@ -41,21 +41,23 @@ func (s *SyncPair) syncDirToS3() bool {
     s3 := s3.New(s.Auth, region)
     s3url := S3Url{Url: s.Target}
 
-    var routines []chan int
+    var routines []chan string
 
     for file, _ := range sourceFiles {
         if targetFiles[file] != sourceFiles[file] {
             filePath := strings.Join([]string{s.Source, file}, "/")
             bucket := s3.Bucket(s3url.Bucket())
             fmt.Printf("Syncing %s to %s in bucket %s.\n", filePath, file, bucket.Name)
-            wait := make(chan int)
-            go putRoutine(wait, filePath, bucket, file)
+            wait := make(chan string)
+            keyPath := strings.Join([]string{s3url.Key(), file}, "/")
+            go putRoutine(wait, filePath, bucket, keyPath)
             routines = append(routines, wait)
         }
     }
 
     for _, r := range routines {
-        <- r
+        msg := <- r
+        fmt.Printf("%s\n", msg)
     }
     return true
 }
@@ -68,7 +70,7 @@ func (s *SyncPair) syncS3ToDir() bool {
     s3 := s3.New(s.Auth, region)
     s3url := S3Url{Url: s.Source}
 
-    var routines []chan int
+    var routines []chan string
 
     for file, _ := range sourceFiles {
         if targetFiles[file] != sourceFiles[file] {
@@ -82,13 +84,14 @@ func (s *SyncPair) syncS3ToDir() bool {
                }
             }
 
-            wait := make(chan int)
+            wait := make(chan string)
             go getRoutine(wait, filePath, bucket, file)
             routines = append(routines, wait)
         }
     }
     for _, r := range routines {
-        <- r
+        msg := <-r
+        fmt.Printf("%s\n", msg)
     }
     return true
 }
@@ -167,12 +170,12 @@ func pathExists(path string) (bool) {
     return false
 }
 
-func putRoutine(quit chan int, filePath string, bucket *s3.Bucket, file string) {
+func putRoutine(quit chan string, filePath string, bucket *s3.Bucket, file string) {
     Put(bucket, file, filePath)
-    quit <- 1
+    quit <- fmt.Sprintf("%s completed.", filePath)
 }
 
-func getRoutine(quit chan int, filePath string, bucket *s3.Bucket, file string) {
+func getRoutine(quit chan string, filePath string, bucket *s3.Bucket, file string) {
     Get(filePath, bucket, file)
-    quit <- 1
+    quit <- fmt.Sprintf("s3://%s/%s completed.", bucket.Name, file)
 }
