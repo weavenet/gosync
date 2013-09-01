@@ -68,7 +68,6 @@ func (s *SyncPair) syncS3ToDir() bool {
             filePath := strings.Join([]string{s.Target, file}, "/")
             bucket := s3.Bucket(s3url.Bucket())
             fmt.Printf("Syncing %s from bucket %s to %s.\n", file, bucket.Name, filePath)
-            fmt.Printf("Base: %s\n", filepath.Dir(filePath))
             if filepath.Dir(filePath) != "." {
                err := os.MkdirAll(filepath.Dir(filePath), 0755)
                if err != nil {
@@ -104,7 +103,7 @@ func loadS3Files(url string, auth aws.Auth) map[string]string {
           for i := range data.Contents {
             md5sum := strings.Trim(data.Contents[i].ETag, "\"")
             k := strings.TrimPrefix(data.Contents[i].Key, url)
-            fmt.Printf("Read sum from S3 file %s with md5sum %s\n", k, md5sum)
+            //fmt.Printf("Read sum from S3 file %s with md5sum %s\n", k, md5sum)
             files[k] = md5sum
           }
           return files
@@ -119,7 +118,7 @@ func loadLocalFiles(path string) map[string]string {
             if path == "." {
                 relativePath = filePath
             } else {
-                relativePath = strings.TrimPrefix(filePath, path)
+                relativePath = strings.TrimPrefix(strings.TrimPrefix(filePath, path), "/")
             }
 
             buf, err := ioutil.ReadFile(filePath)
@@ -130,7 +129,7 @@ func loadLocalFiles(path string) map[string]string {
             hasher := md5.New()
             hasher.Write(buf)
             md5sum := fmt.Sprintf("%x", hasher.Sum(nil))
-            fmt.Printf("Read sum from local file %s with md5sum %s\n", relativePath, md5sum)
+            //fmt.Printf("Read sum from local file %s with md5sum %s\n", relativePath, md5sum)
             files[relativePath] = md5sum
         }
         return nil
