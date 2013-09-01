@@ -109,6 +109,7 @@ func (s *SyncPair) syncS3ToDir() bool {
             routines = routines[0:0]
         }
     }
+    waitForRoutines(routines)
     for _, r := range routines {
         msg := <- r
         fmt.Printf("%s\n", msg)
@@ -180,6 +181,7 @@ func validTarget(target string) bool {
     }
     return false
 }
+
 func validS3Url(path string) bool {
     return strings.HasPrefix(path, "s3://")
 }
@@ -199,4 +201,11 @@ func putRoutine(quit chan string, filePath string, bucket *s3.Bucket, file strin
 func getRoutine(quit chan string, filePath string, bucket *s3.Bucket, file string) {
     Get(filePath, bucket, file)
     quit <- fmt.Sprintf("Completed sync: s3://%s/%s -> %s.", bucket.Name, file, filePath)
+}
+
+func waitForRoutines(routines []chan string) {
+    for _, r := range routines {
+        msg := <- r
+        fmt.Printf("%s\n", msg)
+    }
 }
