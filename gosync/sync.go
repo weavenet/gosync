@@ -41,16 +41,21 @@ func (s *SyncPair) syncDirToS3() bool {
     s3 := s3.New(s.Auth, region)
     s3url := S3Url{Url: s.Target}
 
+    var routines []chan int
+
     for file, _ := range sourceFiles {
         if targetFiles[file] != sourceFiles[file] {
             filePath := strings.Join([]string{s.Source, file}, "/")
             bucket := s3.Bucket(s3url.Bucket())
             fmt.Printf("Syncing %s to %s in bucket %s.\n", filePath, file, bucket.Name)
-            err := Put(bucket, file, filePath)
-            if err != nil {
-               panic(err.Error())
-            }
+            wait := make(chan int)
+            go putRoutine(wait, filePath, bucket, file)
+            routines = append(routines, wait)
         }
+    }
+
+    for _, r := range routines {
+        <- r
     }
     return true
 }
@@ -62,6 +67,8 @@ func (s *SyncPair) syncS3ToDir() bool {
     region := aws.USEast
     s3 := s3.New(s.Auth, region)
     s3url := S3Url{Url: s.Source}
+
+    var routines []chan int
 
     for file, _ := range sourceFiles {
         if targetFiles[file] != sourceFiles[file] {
@@ -75,17 +82,19 @@ func (s *SyncPair) syncS3ToDir() bool {
                }
             }
 
-            err := Get(filePath, bucket, file)
-            if err != nil {
-               panic(err.Error())
-            }
+            wait := make(chan int)
+            go getRoutine(wait, filePath, bucket, file)
+            routines = append(routines, wait)
         }
+    }
+    for _, r := range routines {
+        <- r
     }
     return true
 }
 
 func loadS3Files(url string, auth aws.Auth) map[string]string {
-    files := map[string]string{}
+          files := map[string]string{}
           s3url := S3Url{Url: url}
           key := s3url.Key()
           region := aws.USEast
@@ -156,4 +165,14 @@ func pathExists(path string) (bool) {
     if err == nil { return true }
     if os.IsNotExist(err) { return false }
     return false
+}
+
+func putRoutine(quit chan int, filePath string, bucket *s3.Bucket, file string) {
+    Put(bucket, file, filePath)
+    quit <- 1
+}
+
+func getRoutine(quit chan int, filePath string, bucket *s3.Bucket, file string) {
+    Get(filePath, bucket, file)
+    quit <- 1
 }

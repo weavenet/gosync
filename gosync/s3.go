@@ -28,17 +28,20 @@ func (r *S3Url) keys() []string {
     return strings.Split(trimmed_string, "/")
 }
 
-func Get(file string, bucket *s3.Bucket, path string) error {
+func Get(file string, bucket *s3.Bucket, path string) {
     data, err := bucket.Get(path)
     if err != nil {
         panic(err.Error())
     }
     perms := os.FileMode(0644)
+
     err = ioutil.WriteFile(file, data, perms)
-    return err
+    if err != nil {
+        panic(err.Error())
+    }
 }
 
-func Put(bucket *s3.Bucket, path string, file string) error {
+func Put(bucket *s3.Bucket, path string, file string) {
     contType := "binary/octet-stream"
     Perms := s3.ACL("private")
 
@@ -48,5 +51,7 @@ func Put(bucket *s3.Bucket, path string, file string) error {
     }
 
     err = bucket.Put(path, data, contType, Perms)
-    return err
+    if err != nil {
+        panic(err.Error())
+    }
 }
