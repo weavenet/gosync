@@ -20,11 +20,13 @@ type SyncPair struct {
 func (s *SyncPair) Sync() bool {
     if s.validPair() {
         if validS3Url(s.Source) {
-           s.syncS3ToDir()
-           return true
+           if s.syncS3ToDir() == true {
+               return true
+           }
         } else {
-           s.syncDirToS3()
-           return true
+           if s.syncDirToS3() == true {
+               return true
+           }
         }
     }
     fmt.Printf("Path not valid.")
@@ -40,19 +42,11 @@ func (s *SyncPair) syncDirToS3() bool {
     s3url := S3Url{Url: s.Target}
 
     for file, _ := range sourceFiles {
-fmt.Printf("%s\n", file)
-fmt.Printf("%s\n", targetFiles)
-fmt.Printf("%s\n", sourceFiles)
-fmt.Printf("%s\n", targetFiles[file])
-fmt.Printf("%s\n", sourceFiles[file])
         if targetFiles[file] != sourceFiles[file] {
-            fmt.Printf("Syncing %s\n", file)
             filePath := strings.Join([]string{s.Source, file}, "/")
             bucket := s3.Bucket(s3url.Bucket())
-            fmt.Printf("%s syncing to %s", filePath, file)
+            fmt.Printf("Syncing %s to %s in bucket %s.\n", filePath, file, bucket.Name)
             Put(bucket, file, filePath)
-        } else {
-            fmt.Printf("Not Syncing %s\n", file)
         }
     }
     return true
@@ -61,10 +55,19 @@ fmt.Printf("%s\n", sourceFiles[file])
 func (s *SyncPair) syncS3ToDir() bool {
     sourceFiles := loadS3Files(s.Source, s.Auth)
     targetFiles := loadLocalFiles(s.Target)
-    fmt.Printf("Sources:\n")
-    for k, _ := range sourceFiles { fmt.Printf("Key %s Value %s\n", k, sourceFiles[k]) }
-    fmt.Printf("Targets:\n")
-    for k, _ := range targetFiles { fmt.Printf("Key %s Value %s\n", k, targetFiles[k]) }
+
+    region := aws.USEast
+    s3 := s3.New(s.Auth, region)
+    s3url := S3Url{Url: s.Source}
+
+    for file, _ := range sourceFiles {
+        if targetFiles[file] != sourceFiles[file] {
+            filePath := strings.Join([]string{s.Target, file}, "/")
+            bucket := s3.Bucket(s3url.Bucket())
+            fmt.Printf("Syncing %s from bucket %s to %s.\n", file, bucket.Name, filePath)
+            Get(filePath, bucket, file)
+        }
+    }
     return true
 }
 
@@ -85,9 +88,10 @@ func loadS3Files(url string, auth aws.Auth) map[string]string {
              panic(err.Error())
           }
           for i := range data.Contents {
-            md5sum := data.Contents[i].ETag
+            md5sum := strings.Trim(data.Contents[i].ETag, "\"")
             k := strings.TrimLeft(data.Contents[i].Key, url)
-            files[k] = strings.Trim(md5sum, "\"")
+            fmt.Printf("Read sum from S3 file %s with md5sum %s\n", k, md5sum)
+            files[k] = md5sum
           }
           return files
 }
@@ -106,6 +110,7 @@ func loadLocalFiles(path string) map[string]string {
             hasher := md5.New()
             hasher.Write(buf)
             md5sum := fmt.Sprintf("%x", hasher.Sum(nil))
+            fmt.Printf("Read sum from local file %s with md5sum %s\n", relativePath, md5sum)
             files[relativePath] = md5sum
         }
         return nil

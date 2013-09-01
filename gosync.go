@@ -34,7 +34,12 @@ func main() {
 
           sync := gosync.SyncPair{arg0, arg1, auth}
           result := sync.Sync()
-          fmt.Printf("Result: %s\n", result)
+          if result == true {
+              fmt.Printf("Syncing completed succesfully.")
+          } else {
+              fmt.Printf("Syncing failed.")
+              os.Exit(1)
+          }
         },
       },
     }
