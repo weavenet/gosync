@@ -89,7 +89,7 @@ func loadS3Files(url string, auth aws.Auth) map[string]string {
           }
           for i := range data.Contents {
             md5sum := strings.Trim(data.Contents[i].ETag, "\"")
-            k := strings.TrimLeft(data.Contents[i].Key, url)
+            k := strings.TrimPrefix(data.Contents[i].Key, url)
             fmt.Printf("Read sum from S3 file %s with md5sum %s\n", k, md5sum)
             files[k] = md5sum
           }
@@ -100,7 +100,8 @@ func loadLocalFiles(path string) map[string]string {
     files := map[string]string{}
     filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
         if !info.IsDir() {
-            relativePath := strings.TrimLeft(filePath, path)
+            relativePath := strings.TrimPrefix(filePath, path)
+            fmt.Printf("For some reason not loading all files.  Saving: %s\n", relativePath)
 
             buf, err := ioutil.ReadFile(filePath)
             if err != nil {
