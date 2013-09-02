@@ -2,6 +2,7 @@ package gosync
 
 import (
     "crypto/md5"
+    "errors"
     "fmt"
     "io/ioutil"
     "os"
@@ -150,9 +151,15 @@ func loadS3Files(url string, auth aws.Auth) (map[string]string, error) {
           if err != nil {
              panic(err.Error())
           }
+          if data.IsTruncated == true {
+             msg := "Results from S3 truncated and I don't yet know how to downlaod next set of results, exiting to avoid invalid results."
+             fmt.Printf("%s\n", msg)
+             err := errors.New(msg)
+             return nil, err
+          }
           for i := range data.Contents {
             md5sum := strings.Trim(data.Contents[i].ETag, "\"")
-            k := strings.TrimPrefix(data.Contents[i].Key, url)
+            k := relativePath(path, data.Contents[i].Key)
             files[k] = md5sum
           }
           return files, nil
