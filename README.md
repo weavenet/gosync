@@ -4,16 +4,17 @@
 
 Sync files, fast.
 
+Gosync leverages go routines to concurrently sync files from S3 to the local file system and vice versa.
+
 # Installation
 
 Clone the repo:
 
     get clone https://github.com/brettweavnet/gosync
 
-Chagne in the gosync directory and run make:
+Change into the gosync directory and run make:
 
-    cd gosync
-    make
+    cd gosync; make
 
 # Setup
 
@@ -26,10 +27,10 @@ Set environment variables:
 
     gosync sync source target
 
-## From local directory to S3
+## Syncing from local directory to S3
 
     gosync sync /files s3://bucket/files
 
-## From S3 to local directory
+## Syncing from S3 to local directory
 
     gosync sync s3://bucket/files /files
