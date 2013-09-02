@@ -25,22 +25,22 @@ func main() {
              fmt.Printf("S3 URL and local directory required.")
              os.Exit(1)
           }
-          arg0 := c.Args()[0]
-          arg1 := c.Args()[1]
+          source := c.Args()[0]
+          target := c.Args()[1]
           auth, err := aws.EnvAuth()
           if err != nil {
-              panic(err)
+              fmt.Printf("Error loading AWS credentials: %s", err)
+              os.Exit(1)
           }
 
-          fmt.Printf("Syncing %s with %s\n", arg0, arg1)
+          fmt.Printf("Syncing %s with %s\n", source, target)
 
-          sync := gosync.SyncPair{arg0, arg1, auth, concurrent}
+          sync := gosync.SyncPair{source, target, auth, concurrent}
           err = sync.Sync()
           if err == nil {
               fmt.Printf("Syncing completed succesfully.")
           } else {
-              fmt.Printf("%s\n", err)
-              fmt.Printf("Syncing failed.")
+              fmt.Printf("Sync failed: %s", err)
               os.Exit(1)
           }
         },
