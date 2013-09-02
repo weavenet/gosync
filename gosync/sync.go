@@ -31,7 +31,7 @@ func (s *SyncPair) Sync() bool {
     }
 }
 
-func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket) {
+func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket, error) {
     var bucket s3.Bucket
 
     // Looking in each region for bucket
@@ -48,21 +48,27 @@ func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket) {
             continue
         } else {
             fmt.Printf("Invalid bucket.\n")
-            os.Exit(1)
+            return nil, err
         }
     }
     fmt.Printf("Found bucket in %s.\n", bucket.S3.Region.Name)
-    return &bucket
+    return &bucket, nil
 }
 
 func (s *SyncPair) syncDirToS3() bool {
     sourceFiles := loadLocalFiles(s.Source)
-    targetFiles := loadS3Files(s.Target, s.Auth)
+    targetFiles, err := loadS3Files(s.Target, s.Auth)
+    if err != nil {
+       return false
+    }
 
     var routines []chan string
 
     s3url := S3Url{Url: s.Target}
-    bucket := lookupBucket(s3url.Bucket(), s.Auth)
+    bucket, err := lookupBucket(s3url.Bucket(), s.Auth)
+    if err != nil {
+       return false
+    }
 
     count := 0
     for file, _ := range sourceFiles {
@@ -87,13 +93,19 @@ func (s *SyncPair) syncDirToS3() bool {
 }
 
 func (s *SyncPair) syncS3ToDir() bool {
-    sourceFiles := loadS3Files(s.Source, s.Auth)
+    sourceFiles, err := loadS3Files(s.Source, s.Auth)
+    if err != nil {
+       return false
+    }
     targetFiles := loadLocalFiles(s.Target)
 
     var routines []chan string
 
     s3url := S3Url{Url: s.Source}
-    bucket := lookupBucket(s3url.Bucket(), s.Auth)
+    bucket, err := lookupBucket(s3url.Bucket(), s.Auth)
+    if err != nil {
+       return false
+    }
 
     count := 0
 
@@ -124,12 +136,15 @@ func (s *SyncPair) syncS3ToDir() bool {
     return true
 }
 
-func loadS3Files(url string, auth aws.Auth) map[string]string {
+func loadS3Files(url string, auth aws.Auth) (map[string]string, error) {
           files := map[string]string{}
           s3url := S3Url{Url: url}
           path  := s3url.Path()
 
-          bucket := lookupBucket(s3url.Bucket(), auth)
+          bucket, err := lookupBucket(s3url.Bucket(), auth)
+          if err != nil {
+             return nil, err
+          }
 
           data, err := bucket.List(path, "", "", 0)
           if err != nil {
@@ -140,7 +155,7 @@ func loadS3Files(url string, auth aws.Auth) map[string]string {
             k := strings.TrimPrefix(data.Contents[i].Key, url)
             files[k] = md5sum
           }
-          return files
+          return files, nil
 }
 
 func loadLocalFiles(path string) map[string]string {
@@ -149,7 +164,7 @@ func loadLocalFiles(path string) map[string]string {
         if !info.IsDir() {
             p := relativePath(path, filePath)
 
-            buf, err := ioutil.ReadFile(p)
+            buf, err := ioutil.ReadFile(filePath)
             if err != nil {
                 panic(err)
             }
