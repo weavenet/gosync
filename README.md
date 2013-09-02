@@ -12,9 +12,11 @@ Clone the repo:
 
     git clone https://github.com/brettweavnet/gosync
 
-Change into the gosync directory and run make:
+Change into the gosync directory, download the dependencies and run make:
 
-    cd gosync; make
+    cd gosync
+    go get -d -v ./...
+    make
 
 # Setup
 
