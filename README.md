@@ -10,7 +10,7 @@ Gosync leverages go routines to concurrently sync files from S3 to the local fil
 
 Clone the repo:
 
-    get clone https://github.com/brettweavnet/gosync
+    git clone https://github.com/brettweavnet/gosync
 
 Change into the gosync directory and run make:
 
