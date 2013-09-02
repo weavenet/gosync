@@ -35,7 +35,7 @@ func main() {
           fmt.Printf("Syncing %s with %s\n", arg0, arg1)
 
           sync := gosync.SyncPair{arg0, arg1, auth, concurrent}
-          result := sync.Sync()
+          result,err := sync.Sync()
           if result == true {
               fmt.Printf("Syncing completed succesfully.")
           } else {

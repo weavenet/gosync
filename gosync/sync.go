@@ -19,16 +19,18 @@ type SyncPair struct {
     Concurrent int
 }
 
-func (s *SyncPair) Sync() bool {
+func (s *SyncPair) Sync() (bool, error) {
     if s.validPair() != true {
-        fmt.Printf("Target or source not valid.\n")
-        return false
+        err := errors.New("Invalid sync pair.")
+        return false, err
     }
 
     if validS3Url(s.Source) {
-       return s.syncS3ToDir()
+       result, err :=  s.syncS3ToDir()
+       return result, err
     } else {
-       return s.syncDirToS3()
+       result, err := s.syncDirToS3()
+       return result, err
     }
 }
 
@@ -56,11 +58,11 @@ func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket, error) {
     return &bucket, nil
 }
 
-func (s *SyncPair) syncDirToS3() bool {
+func (s *SyncPair) syncDirToS3() (bool, error) {
     sourceFiles := loadLocalFiles(s.Source)
     targetFiles, err := loadS3Files(s.Target, s.Auth)
     if err != nil {
-       return false
+       return false, err
     }
 
     var routines []chan string
@@ -68,7 +70,7 @@ func (s *SyncPair) syncDirToS3() bool {
     s3url := S3Url{Url: s.Target}
     bucket, err := lookupBucket(s3url.Bucket(), s.Auth)
     if err != nil {
-       return false
+       return false, err
     }
 
     count := 0
@@ -90,13 +92,13 @@ func (s *SyncPair) syncDirToS3() bool {
         }
     }
     waitForRoutines(routines)
-    return true
+    return true, nil
 }
 
-func (s *SyncPair) syncS3ToDir() bool {
+func (s *SyncPair) syncS3ToDir() (bool, error) {
     sourceFiles, err := loadS3Files(s.Source, s.Auth)
     if err != nil {
-       return false
+       return false, err
     }
     targetFiles := loadLocalFiles(s.Target)
 
@@ -105,7 +107,7 @@ func (s *SyncPair) syncS3ToDir() bool {
     s3url := S3Url{Url: s.Source}
     bucket, err := lookupBucket(s3url.Bucket(), s.Auth)
     if err != nil {
-       return false
+       return false, err
     }
 
     count := 0
@@ -118,7 +120,7 @@ func (s *SyncPair) syncS3ToDir() bool {
             if filepath.Dir(filePath) != "." {
                err := os.MkdirAll(filepath.Dir(filePath), 0755)
                if err != nil {
-                  panic(err.Error())
+                  return false, err
                }
             }
 
@@ -134,7 +136,7 @@ func (s *SyncPair) syncS3ToDir() bool {
         }
     }
     waitForRoutines(routines)
-    return true
+    return true, nil
 }
 
 func loadS3Files(url string, auth aws.Auth) (map[string]string, error) {
