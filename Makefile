@@ -10,4 +10,4 @@ test: deps
 	go test ./...
 fmt:
 	@echo "Formatting."
-	gofmt -w -tabs=false -tabwidth=2 .
+	gofmt -w .
