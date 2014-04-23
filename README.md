@@ -2,20 +2,19 @@
 
 # gosync
 
-Sync files, fast.
-
-Gosync leverages go routines to concurrently sync files from S3 to the local file system and vice versa.
+I want to be the fastest way to concurrently sync files and directories to/from S3.
 
 # Installation
 
+Ensure you have Go 1.2 or greater installed and your GOPATH is set.
+
 Clone the repo:
 
-    git clone https://github.com/brettweavnet/gosync
+    go get github.com/brettweavnet/gosync
 
-Change into the gosync directory, download the dependencies and run make:
+Change into the gosync directory and run make:
 
-    cd gosync
-    go get -d -v ./...
+    cd $GOPATH/github.com/brettweavnet/gosync
     make
 
 # Setup
@@ -27,7 +26,7 @@ Set environment variables:
 
 # Usage
 
-    gosync sync source target
+    gosync sync SOURCE TARGET
 
 ## Syncing from local directory to S3
 
@@ -36,3 +35,17 @@ Set environment variables:
 ## Syncing from S3 to local directory
 
     gosync sync s3://bucket/files /files
+
+# Known Issues
+
+* The number of concurrent files to sync is not currently tunable.
+* gosync does not currently support removing files from the target.
+* Only supports setting default permissions on local files and private in s3.
+
+# Contributing
+
+1. Fork it
+2. Create your feature branch (git checkout -b my-new-feature)
+3. Commit your changes (git commit -am 'Add some feature')
+4. Push to the branch (git push origin my-new-feature)
+5. Create new Pull Request

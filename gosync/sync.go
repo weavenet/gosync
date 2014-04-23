@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"launchpad.net/goamz/aws"
-	"launchpad.net/goamz/s3"
 	"os"
 	"path/filepath"
 	"strings"
+
+	log "github.com/cihub/seelog"
+	"github.com/mitchellh/goamz/aws"
+	"github.com/mitchellh/goamz/s3"
 )
 
 type SyncPair struct {
@@ -47,42 +49,51 @@ func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket, error) {
 		} else if err.Error() == "Get : 301 response missing Location header" {
 			continue
 		} else {
-			fmt.Printf("Invalid bucket.\n")
-			return nil, err
+			return nil, fmt.Errorf("Invalid bucket.\n")
 		}
 	}
-	fmt.Printf("Found bucket in %s.\n", bucket.S3.Region.Name)
+	log.Infof("Found bucket in '%s'.", bucket.S3.Region.Name)
 	return &bucket, nil
 }
 
 func (s *SyncPair) syncDirToS3() error {
-	sourceFiles := loadLocalFiles(s.Source)
-	targetFiles, err := loadS3Files(s.Target, s.Auth)
+	log.Infof("Syncing to S3.")
+
+	sourceFiles, err := loadLocalFiles(s.Source)
+	if err != nil {
+		return err
+	}
+
+	s3url := S3Url{Url: s.Target}
+	path := s3url.Path()
+
+	bucket, err := lookupBucket(s3url.Bucket(), s.Auth)
+	if err != nil {
+		return err
+	}
+
+	// Load files and do not specify marker to start
+	targetFiles := make(map[string]string)
+	targetFiles, err = loadS3Files(bucket, path, targetFiles, "")
 	if err != nil {
 		return err
 	}
 
 	var routines []chan string
 
-	s3url := S3Url{Url: s.Target}
-	bucket, err := lookupBucket(s3url.Bucket(), s.Auth)
-	if err != nil {
-		return err
-	}
-
 	count := 0
 	for file, _ := range sourceFiles {
 		if targetFiles[file] != sourceFiles[file] {
 			count++
 			filePath := strings.Join([]string{s.Source, file}, "/")
-			fmt.Printf("Starting sync: %s -> s3://%s/%s.\n", filePath, bucket.Name, file)
+			log.Infof("Starting sync: %s -> s3://%s/%s.", filePath, bucket.Name, file)
 			wait := make(chan string)
 			keyPath := strings.Join([]string{s3url.Key(), file}, "/")
 			go putRoutine(wait, filePath, bucket, keyPath)
 			routines = append(routines, wait)
 		}
 		if count > s.Concurrent {
-			fmt.Printf("Maxiumum concurrent threads running. Waiting.\n")
+			log.Infof("Maxiumum concurrent threads running. Waiting.")
 			waitForRoutines(routines)
 			count = 0
 			routines = routines[0:0]
@@ -93,13 +104,7 @@ func (s *SyncPair) syncDirToS3() error {
 }
 
 func (s *SyncPair) syncS3ToDir() error {
-	sourceFiles, err := loadS3Files(s.Source, s.Auth)
-	if err != nil {
-		return err
-	}
-	targetFiles := loadLocalFiles(s.Target)
-
-	var routines []chan string
+	log.Infof("Syncing from S3.")
 
 	s3url := S3Url{Url: s.Source}
 	bucket, err := lookupBucket(s3url.Bucket(), s.Auth)
@@ -107,13 +112,26 @@ func (s *SyncPair) syncS3ToDir() error {
 		return err
 	}
 
+	sourceFiles := make(map[string]string)
+	sourceFiles, err = loadS3Files(bucket, s3url.Path(), sourceFiles, "")
+	if err != nil {
+		return err
+	}
+
+	targetFiles, err := loadLocalFiles(s.Target)
+	if err != nil {
+		return err
+	}
+
+	var routines []chan string
+
 	count := 0
 
 	for file, _ := range sourceFiles {
 		if targetFiles[file] != sourceFiles[file] {
 			count++
 			filePath := strings.Join([]string{s.Target, file}, "/")
-			fmt.Printf("Starting sync: s3://%s/%s -> %s.\n", bucket.Name, file, filePath)
+			log.Infof("Starting sync: s3://%s/%s -> %s.", bucket.Name, file, filePath)
 			if filepath.Dir(filePath) != "." {
 				err := os.MkdirAll(filepath.Dir(filePath), 0755)
 				if err != nil {
@@ -126,7 +144,7 @@ func (s *SyncPair) syncS3ToDir() error {
 			routines = append(routines, wait)
 		}
 		if count > s.Concurrent {
-			fmt.Printf("Maxiumum concurrent threads running. Waiting.\n")
+			log.Infof("Maxiumum concurrent threads running. Waiting...")
 			waitForRoutines(routines)
 			count = 0
 			routines = routines[0:0]
@@ -136,43 +154,39 @@ func (s *SyncPair) syncS3ToDir() error {
 	return nil
 }
 
-func loadS3Files(url string, auth aws.Auth) (map[string]string, error) {
-	files := map[string]string{}
-	s3url := S3Url{Url: url}
-	path := s3url.Path()
-
-	bucket, err := lookupBucket(s3url.Bucket(), auth)
+func loadS3Files(bucket *s3.Bucket, path string, files map[string]string, marker string) (map[string]string, error) {
+	data, err := bucket.List(path, "", marker, 0)
 	if err != nil {
-		return nil, err
+		return files, err
 	}
 
-	data, err := bucket.List(path, "", "", 0)
-	if err != nil {
-		panic(err.Error())
-	}
-	if data.IsTruncated == true {
-		msg := "Results from S3 truncated and I don't yet know how to downlaod next set of results, exiting to avoid invalid results."
-		fmt.Printf("%s\n", msg)
-		err := errors.New(msg)
-		return nil, err
-	}
 	for i := range data.Contents {
 		md5sum := strings.Trim(data.Contents[i].ETag, "\"")
 		k := relativePath(path, data.Contents[i].Key)
 		files[k] = md5sum
 	}
+
+	// Continue to call loadS3files if next marker set
+	if data.IsTruncated {
+		lastKey := data.Contents[(len(data.Contents) - 1)].Key
+		log.Infof("Results truncated, loading additional files via previous last key '%s'.", lastKey)
+		loadS3Files(bucket, path, files, lastKey)
+	} else {
+		log.Infof("All keys loaded.")
+	}
 	return files, nil
 }
 
-func loadLocalFiles(path string) map[string]string {
+func loadLocalFiles(path string) (map[string]string, error) {
 	files := map[string]string{}
-	filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
+
+	loadMd5Sums := func(filePath string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
 			p := relativePath(path, filePath)
 
 			buf, err := ioutil.ReadFile(filePath)
 			if err != nil {
-				panic(err)
+				return err
 			}
 
 			hasher := md5.New()
@@ -181,8 +195,11 @@ func loadLocalFiles(path string) map[string]string {
 			files[p] = md5sum
 		}
 		return nil
-	})
-	return files
+	}
+
+	err := filepath.Walk(path, loadMd5Sums)
+
+	return files, err
 }
 
 func (s *SyncPair) validPair() bool {
@@ -234,7 +251,7 @@ func getRoutine(quit chan string, filePath string, bucket *s3.Bucket, file strin
 func waitForRoutines(routines []chan string) {
 	for _, r := range routines {
 		msg := <-r
-		fmt.Printf("%s\n", msg)
+		log.Infof("%s", msg)
 	}
 }
 

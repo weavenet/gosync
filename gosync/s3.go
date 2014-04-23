@@ -2,9 +2,10 @@ package gosync
 
 import (
 	"io/ioutil"
-	"launchpad.net/goamz/s3"
 	"os"
 	"strings"
+
+	"github.com/mitchellh/goamz/s3"
 )
 
 type S3Url struct {
