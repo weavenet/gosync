@@ -14,7 +14,7 @@ Clone the repo:
 
 Change into the gosync directory and run make:
 
-    cd $GOPATH/github.com/brettweavnet/gosync
+    cd $GOPATH/src/github.com/brettweavnet/gosync/
     make
 
 # Setup
