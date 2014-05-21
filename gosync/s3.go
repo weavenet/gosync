@@ -4,7 +4,8 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-
+	"path/filepath"
+	"mime"
 	"github.com/mitchellh/goamz/s3"
 )
 
@@ -47,7 +48,7 @@ func Get(file string, bucket *s3.Bucket, path string) {
 }
 
 func Put(bucket *s3.Bucket, path string, file string) {
-	contType := "binary/octet-stream"
+	contType := mime.TypeByExtension(filepath.Ext(file))
 	Perms := s3.ACL("private")
 
 	data, err := ioutil.ReadFile(file)
