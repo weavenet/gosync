@@ -14,15 +14,24 @@ import (
 	"github.com/mitchellh/goamz/s3"
 )
 
-type SyncPair struct {
+type sync struct {
+	Auth       aws.Auth
 	Source     string
 	Target     string
-	Auth       aws.Auth
 	Concurrent int
 }
 
-func (s *SyncPair) Sync() error {
-	if s.validPair() != true {
+func NewSync(auth aws.Auth, source string, target string) *sync {
+	return &sync{
+		Auth:       auth,
+		Source:     source,
+		Target:     target,
+		Concurrent: 1,
+	}
+}
+
+func (s *sync) Sync() error {
+	if !s.validPair() {
 		return errors.New("Invalid sync pair.")
 	}
 
@@ -34,29 +43,37 @@ func (s *SyncPair) Sync() error {
 }
 
 func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket, error) {
-	var bucket s3.Bucket
+	var bucket *s3.Bucket = nil
 
 	// Looking in each region for bucket
 	// To do, make this less crusty and ghetto
-	for r, _ := range aws.Regions {
-		s3 := s3.New(auth, aws.Regions[r])
+	for region, _ := range aws.Regions {
+		log.Debugf("Looking for bucket '%s' in '%s'.", bucketName, region)
+		s3 := s3.New(auth, aws.Regions[region])
 		b := s3.Bucket(bucketName)
 
 		// If list return, bucket is valid in this region.
 		_, err := b.List("", "", "", 0)
 		if err == nil {
-			bucket = *b
+			log.Infof("Found bucket '%s' in '%s'.", bucketName, region)
+			bucket = b
+			break
 		} else if err.Error() == "Get : 301 response missing Location header" {
+			log.Debugf("Bucket '%s' not found in '%s'.", bucketName, region)
 			continue
 		} else {
-			return nil, fmt.Errorf("Invalid bucket.\n")
+			return nil, err
 		}
 	}
-	log.Infof("Found bucket in '%s'.", bucket.S3.Region.Name)
-	return &bucket, nil
+
+	if bucket != nil {
+		return bucket, nil
+	}
+
+	return nil, fmt.Errorf("Bucket not found.")
 }
 
-func (s *SyncPair) syncDirToS3() error {
+func (s *sync) syncDirToS3() error {
 	log.Infof("Syncing to S3.")
 
 	sourceFiles, err := loadLocalFiles(s.Source)
@@ -103,7 +120,7 @@ func (s *SyncPair) syncDirToS3() error {
 	return nil
 }
 
-func (s *SyncPair) syncS3ToDir() error {
+func (s *sync) syncS3ToDir() error {
 	log.Infof("Syncing from S3.")
 
 	s3url := S3Url{Url: s.Source}
@@ -202,8 +219,8 @@ func loadLocalFiles(path string) (map[string]string, error) {
 	return files, err
 }
 
-func (s *SyncPair) validPair() bool {
-	if validTarget(s.Source) == true && validTarget(s.Target) == true {
+func (s *sync) validPair() bool {
+	if validTarget(s.Source) && validTarget(s.Target) {
 		return true
 	}
 	return false

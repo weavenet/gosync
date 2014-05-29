@@ -26,19 +26,24 @@ Set environment variables:
 
 # Usage
 
-    gosync sync SOURCE TARGET
+    gosync OPTIONS SOURCE TARGET
 
 ## Syncing from local directory to S3
 
-    gosync sync /files s3://bucket/files
+    gosync /files s3://bucket/files
 
 ## Syncing from S3 to local directory
 
-    gosync sync s3://bucket/files /files
+    gosync s3://bucket/files /files
+
+## Help
+
+For full list of options and commands:
+
+    gosync -h
 
 # Known Issues
 
-* The number of concurrent files to sync is not currently tunable.
 * gosync does not currently support removing files from the target.
 * Only supports setting default permissions on local files and private in s3.
 
