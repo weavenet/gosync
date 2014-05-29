@@ -43,27 +43,34 @@ func (s *sync) Sync() error {
 }
 
 func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket, error) {
-	var bucket s3.Bucket
+	var bucket *s3.Bucket = nil
 
 	// Looking in each region for bucket
 	// To do, make this less crusty and ghetto
 	for region, _ := range aws.Regions {
+		log.Debugf("Looking for bucket '%s' in '%s'.", bucketName, region)
 		s3 := s3.New(auth, aws.Regions[region])
 		b := s3.Bucket(bucketName)
 
 		// If list return, bucket is valid in this region.
 		_, err := b.List("", "", "", 0)
 		if err == nil {
-			bucket = *b
+			log.Infof("Found bucket '%s' in '%s'.", bucketName, region)
+			bucket = b
+			break
 		} else if err.Error() == "Get : 301 response missing Location header" {
 			log.Debugf("Bucket '%s' not found in '%s'.", bucketName, region)
 			continue
 		} else {
-			return nil, fmt.Errorf("Invalid bucket.\n")
+			return nil, err
 		}
 	}
-	log.Infof("Found bucket in '%s'.", bucket.S3.Region.Name)
-	return &bucket, nil
+
+	if bucket != nil {
+		return bucket, nil
+	}
+
+	return nil, fmt.Errorf("Bucket not found.")
 }
 
 func (s *sync) syncDirToS3() error {
