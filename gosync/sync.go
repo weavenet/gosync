@@ -118,11 +118,11 @@ func (s *Sync) concurrentSyncDirToS3(s3url S3Url, bucket *s3.Bucket, targetFiles
 
 			log.Infof("Starting sync: %s -> s3://%s/%s", filePath, bucket.Name, file)
 			wg.Add(1)
-			go func() {
+			go func(doneChan chan error, filePath string, bucket *s3.Bucket, keyPath string) {
 				defer wg.Done()
 				putRoutine(doneChan, filePath, bucket, keyPath)
 				pool <- 1
-			}()
+			}(doneChan, filePath, bucket, keyPath)
 		}
 	}
 
@@ -175,11 +175,11 @@ func (s *Sync) concurrentSyncS3ToDir(s3url S3Url, bucket *s3.Bucket, targetFiles
 
 			log.Infof("Starting sync: s3://%s/%s -> %s.", bucket.Name, file, filePath)
 			wg.Add(1)
-			go func() {
+			go func(doneChan chan error, filePath string, bucket *s3.Bucket, file string) {
 				defer wg.Done()
 				getRoutine(doneChan, filePath, bucket, file)
 				pool <- 1
-			}()
+			}(doneChan, filePath, bucket, file)
 		}
 	}
 
