@@ -233,8 +233,14 @@ func loadLocalFiles(path string) (map[string]string, error) {
 	}
 
 	err := filepath.Walk(path, loadMd5Sums)
+	if err != nil {
+		return files, err
+	}
 
-	return files, err
+	log.Debugf("Loaded '%d' files from '%s'.", len(files), path)
+	log.Infof("Loading local files complete.")
+
+	return files, nil
 }
 
 func (s *Sync) validPair() bool {
