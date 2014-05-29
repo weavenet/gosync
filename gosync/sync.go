@@ -8,21 +8,22 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	log "github.com/cihub/seelog"
 	"github.com/mitchellh/goamz/aws"
 	"github.com/mitchellh/goamz/s3"
 )
 
-type sync struct {
+type Sync struct {
 	Auth       aws.Auth
 	Source     string
 	Target     string
 	Concurrent int
 }
 
-func NewSync(auth aws.Auth, source string, target string) *sync {
-	return &sync{
+func NewSync(auth aws.Auth, source string, target string) *Sync {
+	return &Sync{
 		Auth:       auth,
 		Source:     source,
 		Target:     target,
@@ -30,19 +31,20 @@ func NewSync(auth aws.Auth, source string, target string) *sync {
 	}
 }
 
-func (s *sync) Sync() error {
+func (s *Sync) Sync() error {
 	if !s.validPair() {
 		return errors.New("Invalid sync pair.")
 	}
 
 	if validS3Url(s.Source) {
 		return s.syncS3ToDir()
-	} else {
-		return s.syncDirToS3()
 	}
+	return s.syncDirToS3()
 }
 
 func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket, error) {
+	log.Infof("Looking up region for bucket '%s'.", bucketName)
+
 	var bucket *s3.Bucket = nil
 
 	// Looking in each region for bucket
@@ -73,7 +75,7 @@ func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket, error) {
 	return nil, fmt.Errorf("Bucket not found.")
 }
 
-func (s *sync) syncDirToS3() error {
+func (s *Sync) syncDirToS3() error {
 	log.Infof("Syncing to S3.")
 
 	sourceFiles, err := loadLocalFiles(s.Source)
@@ -96,31 +98,36 @@ func (s *sync) syncDirToS3() error {
 		return err
 	}
 
-	var routines []chan string
+	doneChan := newDoneChan(s.Concurrent)
+	pool := newPool(s.Concurrent)
+	var wg sync.WaitGroup
 
-	count := 0
 	for file, _ := range sourceFiles {
 		if targetFiles[file] != sourceFiles[file] {
-			count++
 			filePath := strings.Join([]string{s.Source, file}, "/")
-			log.Infof("Starting sync: %s -> s3://%s/%s.", filePath, bucket.Name, file)
-			wait := make(chan string)
 			keyPath := strings.Join([]string{s3url.Key(), file}, "/")
-			go putRoutine(wait, filePath, bucket, keyPath)
-			routines = append(routines, wait)
-		}
-		if count > s.Concurrent {
-			log.Infof("Maxiumum concurrent threads running. Waiting.")
-			waitForRoutines(routines)
-			count = 0
-			routines = routines[0:0]
+
+			// Get transfer reservation from pool
+			log.Tracef("Requesting reservation for '%s'.", keyPath)
+			<-pool
+			log.Tracef("Retrieved reservation for '%s'.", keyPath)
+
+			log.Infof("Starting sync: %s -> s3://%s/%s", filePath, bucket.Name, file)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				putRoutine(doneChan, filePath, bucket, keyPath)
+				pool <- 1
+			}()
 		}
 	}
-	waitForRoutines(routines)
+
+	// Wait for all routines to finish
+	wg.Wait()
 	return nil
 }
 
-func (s *sync) syncS3ToDir() error {
+func (s *Sync) syncS3ToDir() error {
 	log.Infof("Syncing from S3.")
 
 	s3url := S3Url{Url: s.Source}
@@ -140,15 +147,13 @@ func (s *sync) syncS3ToDir() error {
 		return err
 	}
 
-	var routines []chan string
-
-	count := 0
+	doneChan := newDoneChan(s.Concurrent)
+	pool := newPool(s.Concurrent)
+	var wg sync.WaitGroup
 
 	for file, _ := range sourceFiles {
 		if targetFiles[file] != sourceFiles[file] {
-			count++
 			filePath := strings.Join([]string{s.Target, file}, "/")
-			log.Infof("Starting sync: s3://%s/%s -> %s.", bucket.Name, file, filePath)
 			if filepath.Dir(filePath) != "." {
 				err := os.MkdirAll(filepath.Dir(filePath), 0755)
 				if err != nil {
@@ -156,18 +161,22 @@ func (s *sync) syncS3ToDir() error {
 				}
 			}
 
-			wait := make(chan string)
-			go getRoutine(wait, filePath, bucket, file)
-			routines = append(routines, wait)
-		}
-		if count > s.Concurrent {
-			log.Infof("Maxiumum concurrent threads running. Waiting...")
-			waitForRoutines(routines)
-			count = 0
-			routines = routines[0:0]
+			// Get transfer reservation from pool
+			log.Tracef("Requesting reservation for '%s'.", filePath)
+			<-pool
+			log.Tracef("Retrieved reservation for '%s'.", filePath)
+
+			log.Infof("Starting sync: s3://%s/%s -> %s.", bucket.Name, file, filePath)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				getRoutine(doneChan, filePath, bucket, file)
+				pool <- 1
+			}()
 		}
 	}
-	waitForRoutines(routines)
+
+	wg.Wait()
 	return nil
 }
 
@@ -183,14 +192,16 @@ func loadS3Files(bucket *s3.Bucket, path string, files map[string]string, marker
 		files[k] = md5sum
 	}
 
-	// Continue to call loadS3files if next marker set
+	// Continue to call loadS3files and add
+	// Files to map if next marker set
 	if data.IsTruncated {
 		lastKey := data.Contents[(len(data.Contents) - 1)].Key
 		log.Infof("Results truncated, loading additional files via previous last key '%s'.", lastKey)
 		loadS3Files(bucket, path, files, lastKey)
-	} else {
-		log.Infof("All keys loaded.")
 	}
+
+	log.Debugf("Loaded '%d' files from S3.", len(files))
+	log.Infof("Loading files from S3 complete.")
 	return files, nil
 }
 
@@ -219,7 +230,7 @@ func loadLocalFiles(path string) (map[string]string, error) {
 	return files, err
 }
 
-func (s *sync) validPair() bool {
+func (s *Sync) validPair() bool {
 	if validTarget(s.Source) && validTarget(s.Target) {
 		return true
 	}
@@ -255,14 +266,12 @@ func pathExists(path string) bool {
 	return false
 }
 
-func putRoutine(quit chan string, filePath string, bucket *s3.Bucket, file string) {
-	Put(bucket, file, filePath)
-	quit <- fmt.Sprintf("Completed sync: %s -> s3://%s/%s.", filePath, bucket.Name, file)
+func putRoutine(doneChan chan error, filePath string, bucket *s3.Bucket, file string) {
+	doneChan <- Put(bucket, file, filePath)
 }
 
-func getRoutine(quit chan string, filePath string, bucket *s3.Bucket, file string) {
-	Get(filePath, bucket, file)
-	quit <- fmt.Sprintf("Completed sync: s3://%s/%s -> %s.", bucket.Name, file, filePath)
+func getRoutine(doneChan chan error, filePath string, bucket *s3.Bucket, file string) {
+	doneChan <- Get(filePath, bucket, file)
 }
 
 func waitForRoutines(routines []chan string) {
@@ -278,4 +287,20 @@ func relativePath(path string, filePath string) string {
 	} else {
 		return strings.TrimPrefix(strings.TrimPrefix(filePath, path), "/")
 	}
+}
+
+func newDoneChan(concurrent int) chan error {
+	// Panic on any errors
+	doneChan := make(chan error, concurrent)
+	go func() {
+		for {
+			select {
+			case err := <-doneChan:
+				if err != nil {
+					panic(err.Error())
+				}
+			}
+		}
+	}()
+	return doneChan
 }
