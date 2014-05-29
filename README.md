@@ -26,7 +26,7 @@ Set environment variables:
 
 # Usage
 
-    gosync sync SOURCE TARGET
+    gosync OPTIONS SOURCE TARGET
 
 ## Syncing from local directory to S3
 
@@ -35,6 +35,12 @@ Set environment variables:
 ## Syncing from S3 to local directory
 
     gosync s3://bucket/files /files
+
+## Help
+
+For full list of options and commands:
+
+    gosync -h
 
 # Known Issues
 

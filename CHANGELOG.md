@@ -1,4 +1,4 @@
-# 0.0.2
+# HEAD
 
 * Removed sync command (now default for gosync)
 * Add log-level argument
