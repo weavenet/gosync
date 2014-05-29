@@ -98,6 +98,10 @@ func (s *Sync) syncDirToS3() error {
 		return err
 	}
 
+	return s.concurrentSyncDirToS3(s3url, bucket, targetFiles, sourceFiles)
+}
+
+func (s *Sync) concurrentSyncDirToS3(s3url S3Url, bucket *s3.Bucket, targetFiles, sourceFiles map[string]string) error {
 	doneChan := newDoneChan(s.Concurrent)
 	pool := newPool(s.Concurrent)
 	var wg sync.WaitGroup
@@ -146,7 +150,10 @@ func (s *Sync) syncS3ToDir() error {
 	if err != nil {
 		return err
 	}
+	return s.concurrentSyncS3ToDir(s3url, bucket, targetFiles, sourceFiles)
+}
 
+func (s *Sync) concurrentSyncS3ToDir(s3url S3Url, bucket *s3.Bucket, targetFiles, sourceFiles map[string]string) error {
 	doneChan := newDoneChan(s.Concurrent)
 	pool := newPool(s.Concurrent)
 	var wg sync.WaitGroup
@@ -267,11 +274,21 @@ func pathExists(path string) bool {
 }
 
 func putRoutine(doneChan chan error, filePath string, bucket *s3.Bucket, file string) {
-	doneChan <- Put(bucket, file, filePath)
+	err := Put(bucket, file, filePath)
+	if err != nil {
+		doneChan <- err
+	}
+	log.Infof("Sync completed successfully: %s -> s3://%s/%s.", filePath, bucket.Name, file)
+	doneChan <- nil
 }
 
 func getRoutine(doneChan chan error, filePath string, bucket *s3.Bucket, file string) {
-	doneChan <- Get(filePath, bucket, file)
+	err := Get(filePath, bucket, file)
+	if err != nil {
+		doneChan <- err
+	}
+	log.Infof("Sync completed successfully: s3://%s/%s -> %s.", bucket.Name, file, filePath)
+	doneChan <- nil
 }
 
 func waitForRoutines(routines []chan string) {
