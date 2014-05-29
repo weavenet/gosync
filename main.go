@@ -25,11 +25,12 @@ func main() {
 
 	app.Action = func(c *cli.Context) {
 		defer log.Flush()
-		setLogLevel("info")
+		setLogLevel(c.String("log-level"))
 
 		err := validateArgs(c)
 		exitOnError(err)
 
+		log.Debugf("Reading AWS credentials from AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
 		auth, err := aws.EnvAuth()
 		exitOnError(err)
 
@@ -40,14 +41,14 @@ func main() {
 		log.Infof("Setting target to '%s'.", target)
 
 		sync := gosync.NewSync(auth, source, target)
-		sync.Concurrent = c.Int("concurrent")
 
+		sync.Concurrent = c.Int("concurrent")
 		log.Infof("Setting concurrent transfers to '%d'.", sync.Concurrent)
 
 		err = sync.Sync()
 		exitOnError(err)
 
-		log.Infof("Syncing completed succesfully.")
+		log.Infof("Syncing completed successfully.")
 	}
 	app.Run(os.Args)
 }

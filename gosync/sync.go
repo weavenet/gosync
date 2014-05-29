@@ -21,11 +21,12 @@ type sync struct {
 	Concurrent int
 }
 
-func NewSync(a aws.Auth, s string, t string) *sync {
+func NewSync(auth aws.Auth, source string, target string) *sync {
 	return &sync{
-		Auth:   a,
-		Source: s,
-		Target: t,
+		Auth:       auth,
+		Source:     source,
+		Target:     target,
+		Concurrent: 1,
 	}
 }
 
@@ -46,8 +47,8 @@ func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket, error) {
 
 	// Looking in each region for bucket
 	// To do, make this less crusty and ghetto
-	for r, _ := range aws.Regions {
-		s3 := s3.New(auth, aws.Regions[r])
+	for region, _ := range aws.Regions {
+		s3 := s3.New(auth, aws.Regions[region])
 		b := s3.Bucket(bucketName)
 
 		// If list return, bucket is valid in this region.
@@ -55,6 +56,7 @@ func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket, error) {
 		if err == nil {
 			bucket = *b
 		} else if err.Error() == "Get : 301 response missing Location header" {
+			log.Debugf("Bucket '%s' not found in '%s'.", bucketName, region)
 			continue
 		} else {
 			return nil, fmt.Errorf("Invalid bucket.\n")
