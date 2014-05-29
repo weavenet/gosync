@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/brettweavnet/gosync/gosync"
+
 	log "github.com/cihub/seelog"
 	"github.com/codegangsta/cli"
 	"github.com/mitchellh/goamz/aws"
@@ -30,26 +31,19 @@ func main() {
 		err := validateArgs(c)
 		exitOnError(err)
 
-		source := c.Args()[0]
-		target := c.Args()[1]
-
 		auth, err := aws.EnvAuth()
 		exitOnError(err)
-		if err != nil {
-			log.Errorf("Error loading AWS credentials: %s", err)
-			os.Exit(1)
-		}
 
-		log.Infof("Syncing '%s' with '%s'", source, target)
+		source := c.Args()[0]
+		target := c.Args()[1]
+		sync := gosync.NewSync(auth, source, target)
 
-		sync := gosync.SyncPair{source, target, auth, concurrent}
+		sync.Concurrent = c.Int("concurrent")
+
 		err = sync.Sync()
-		if err == nil {
-			log.Infof("Syncing completed succesfully.")
-		} else {
-			fmt.Printf("Sync failed: %s", err)
-			os.Exit(1)
-		}
+		exitOnError(err)
+
+		log.Infof("Syncing completed succesfully.")
 	}
 	app.Run(os.Args)
 }

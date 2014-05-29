@@ -14,14 +14,22 @@ import (
 	"github.com/mitchellh/goamz/s3"
 )
 
-type SyncPair struct {
+type sync struct {
+	Auth       aws.Auth
 	Source     string
 	Target     string
-	Auth       aws.Auth
 	Concurrent int
 }
 
-func (s *SyncPair) Sync() error {
+func NewSync(a aws.Auth, s string, t string) *sync {
+	return &sync{
+		Auth:   a,
+		Source: s,
+		Target: t,
+	}
+}
+
+func (s *sync) Sync() error {
 	if !s.validPair() {
 		return errors.New("Invalid sync pair.")
 	}
@@ -56,7 +64,7 @@ func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket, error) {
 	return &bucket, nil
 }
 
-func (s *SyncPair) syncDirToS3() error {
+func (s *sync) syncDirToS3() error {
 	log.Infof("Syncing to S3.")
 
 	sourceFiles, err := loadLocalFiles(s.Source)
@@ -103,7 +111,7 @@ func (s *SyncPair) syncDirToS3() error {
 	return nil
 }
 
-func (s *SyncPair) syncS3ToDir() error {
+func (s *sync) syncS3ToDir() error {
 	log.Infof("Syncing from S3.")
 
 	s3url := S3Url{Url: s.Source}
@@ -202,7 +210,7 @@ func loadLocalFiles(path string) (map[string]string, error) {
 	return files, err
 }
 
-func (s *SyncPair) validPair() bool {
+func (s *sync) validPair() bool {
 	if validTarget(s.Source) && validTarget(s.Target) {
 		return true
 	}
