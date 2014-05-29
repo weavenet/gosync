@@ -1,5 +1,9 @@
 # HEAD
 
+# 0.0.3
+
+* Updated concurrenncy logic
+
 # 0.0.2
 
 * Removed sync command (now default for gosync)
