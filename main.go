@@ -23,9 +23,8 @@ func main() {
 
 	const concurrent = 20
 
-	defer log.Flush()
-
 	app.Action = func(c *cli.Context) {
+		defer log.Flush()
 		setLogLevel("info")
 
 		err := validateArgs(c)
@@ -35,10 +34,15 @@ func main() {
 		exitOnError(err)
 
 		source := c.Args()[0]
-		target := c.Args()[1]
-		sync := gosync.NewSync(auth, source, target)
+		log.Infof("Setting source to '%s'.", source)
 
+		target := c.Args()[1]
+		log.Infof("Setting target to '%s'.", target)
+
+		sync := gosync.NewSync(auth, source, target)
 		sync.Concurrent = c.Int("concurrent")
+
+		log.Infof("Setting concurrent transfers to '%d'.", sync.Concurrent)
 
 		err = sync.Sync()
 		exitOnError(err)
