@@ -1,12 +1,12 @@
 package gosync
 
 import (
-	"io/ioutil"
-	"os"
-	"strings"
-	"path/filepath"
-	"mime"
 	"github.com/mitchellh/goamz/s3"
+	"io/ioutil"
+	"mime"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 type S3Url struct {
@@ -34,30 +34,33 @@ func (r *S3Url) keys() []string {
 	return strings.Split(trimmed_string, "/")
 }
 
-func Get(file string, bucket *s3.Bucket, path string) {
+func Get(file string, bucket *s3.Bucket, path string) error {
 	data, err := bucket.Get(path)
 	if err != nil {
-		panic(err.Error())
+		return err
 	}
 	perms := os.FileMode(0644)
 
 	err = ioutil.WriteFile(file, data, perms)
 	if err != nil {
-		panic(err.Error())
+		return err
 	}
+
+	return nil
 }
 
-func Put(bucket *s3.Bucket, path string, file string) {
+func Put(bucket *s3.Bucket, path string, file string) error {
 	contType := mime.TypeByExtension(filepath.Ext(file))
 	Perms := s3.ACL("private")
 
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
-		panic(err.Error())
+		return err
 	}
 
-	err = bucket.Put(path, data, contType, Perms)
-	if err != nil {
-		panic(err.Error())
+	if err := bucket.Put(path, data, contType, Perms); err != nil {
+		return err
 	}
+
+	return nil
 }

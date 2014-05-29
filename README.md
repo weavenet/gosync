@@ -42,11 +42,6 @@ For full list of options and commands:
 
     gosync -h
 
-# Known Issues
-
-* gosync does not currently support removing files from the target.
-* Only supports setting default permissions on local files and private in s3.
-
 # Contributing
 
 1. Fork it
