@@ -22,7 +22,7 @@ type SyncPair struct {
 }
 
 func (s *SyncPair) Sync() error {
-	if s.validPair() != true {
+	if !s.validPair() {
 		return errors.New("Invalid sync pair.")
 	}
 
@@ -203,7 +203,7 @@ func loadLocalFiles(path string) (map[string]string, error) {
 }
 
 func (s *SyncPair) validPair() bool {
-	if validTarget(s.Source) == true && validTarget(s.Target) == true {
+	if validTarget(s.Source) && validTarget(s.Target) {
 		return true
 	}
 	return false
