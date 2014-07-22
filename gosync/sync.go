@@ -193,10 +193,9 @@ func loadS3Files(bucket *s3.Bucket, path string, files map[string]string, marker
 		return files, err
 	}
 
-	for i := range data.Contents {
-		md5sum := strings.Trim(data.Contents[i].ETag, "\"")
-		k := relativePath(path, data.Contents[i].Key)
-		files[k] = md5sum
+	for _, key := range data.Contents {
+		md5sum := strings.Trim(key.ETag, "\"")
+		files[key.Key] = md5sum
 	}
 
 	// Continue to call loadS3files and add
