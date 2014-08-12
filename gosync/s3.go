@@ -1,66 +1,34 @@
 package gosync
 
 import (
-	"github.com/mitchellh/goamz/s3"
-	"io/ioutil"
-	"mime"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
-type S3Url struct {
+type s3Url struct {
 	Url string
 }
 
-func (r *S3Url) Bucket() string {
+func newS3Url(url string) s3Url {
+	return s3Url{Url: url}
+}
+
+func (r *s3Url) Bucket() string {
 	return r.keys()[0]
 }
 
-func (r *S3Url) Key() string {
+func (r *s3Url) Key() string {
 	return strings.Join(r.keys()[1:len(r.keys())], "/")
 }
 
-func (r *S3Url) Path() string {
+func (r *s3Url) Path() string {
 	return r.Key()
 }
 
-func (r *S3Url) Valid() bool {
+func (r *s3Url) Valid() bool {
 	return strings.HasPrefix(r.Url, "s3://")
 }
 
-func (r *S3Url) keys() []string {
+func (r *s3Url) keys() []string {
 	trimmed_string := strings.TrimLeft(r.Url, "s3://")
 	return strings.Split(trimmed_string, "/")
-}
-
-func Get(file string, bucket *s3.Bucket, path string) error {
-	data, err := bucket.Get(path)
-	if err != nil {
-		return err
-	}
-	perms := os.FileMode(0644)
-
-	err = ioutil.WriteFile(file, data, perms)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func Put(bucket *s3.Bucket, path string, file string) error {
-	contType := mime.TypeByExtension(filepath.Ext(file))
-	Perms := s3.ACL("private")
-
-	data, err := ioutil.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
-	if err := bucket.Put(path, data, contType, Perms); err != nil {
-		return err
-	}
-
-	return nil
 }

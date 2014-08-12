@@ -19,7 +19,7 @@ var S3UrlTests = []S3UrlTestCase{
 
 func TestS3Url(t *testing.T) {
 	for _, c := range S3UrlTests {
-		url := S3Url{Url: c.url}
+		url := newS3Url(c.url)
 
 		if url.Key() != c.key {
 			t.Error("Key not returned correctly.")

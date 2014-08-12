@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	log "github.com/cihub/seelog"
 	"github.com/mitchellh/goamz/aws"
@@ -36,9 +35,14 @@ func (s *Sync) Sync() error {
 		return errors.New("Invalid sync pair.")
 	}
 
+	//if validS3Url(s.Source) && validS3Url(s.Target) {
+	//	return s.syncS3ToS3()
+	//}
+
 	if validS3Url(s.Source) {
 		return s.syncS3ToDir()
 	}
+
 	return s.syncDirToS3()
 }
 
@@ -73,118 +77,6 @@ func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket, error) {
 	}
 
 	return nil, fmt.Errorf("Bucket not found.")
-}
-
-func (s *Sync) syncDirToS3() error {
-	log.Infof("Syncing to S3.")
-
-	sourceFiles, err := loadLocalFiles(s.Source)
-	if err != nil {
-		return err
-	}
-
-	s3url := S3Url{Url: s.Target}
-	path := s3url.Path()
-
-	bucket, err := lookupBucket(s3url.Bucket(), s.Auth)
-	if err != nil {
-		return err
-	}
-
-	// Load files and do not specify marker to start
-	targetFiles := make(map[string]string)
-	targetFiles, err = loadS3Files(bucket, path, targetFiles, "")
-	if err != nil {
-		return err
-	}
-
-	return s.concurrentSyncDirToS3(s3url, bucket, targetFiles, sourceFiles)
-}
-
-func (s *Sync) concurrentSyncDirToS3(s3url S3Url, bucket *s3.Bucket, targetFiles, sourceFiles map[string]string) error {
-	doneChan := newDoneChan(s.Concurrent)
-	pool := newPool(s.Concurrent)
-	var wg sync.WaitGroup
-
-	for file, _ := range sourceFiles {
-		if targetFiles[file] != sourceFiles[file] {
-			filePath := strings.Join([]string{s.Source, file}, "/")
-			keyPath := strings.Join([]string{s3url.Key(), file}, "/")
-
-			// Get transfer reservation from pool
-			log.Tracef("Requesting reservation for '%s'.", keyPath)
-			<-pool
-			log.Tracef("Retrieved reservation for '%s'.", keyPath)
-
-			log.Infof("Starting sync: %s -> s3://%s/%s", filePath, bucket.Name, file)
-			wg.Add(1)
-			go func(doneChan chan error, filePath string, bucket *s3.Bucket, keyPath string) {
-				defer wg.Done()
-				putRoutine(doneChan, filePath, bucket, keyPath)
-				pool <- 1
-			}(doneChan, filePath, bucket, keyPath)
-		}
-	}
-
-	// Wait for all routines to finish
-	wg.Wait()
-	return nil
-}
-
-func (s *Sync) syncS3ToDir() error {
-	log.Infof("Syncing from S3.")
-
-	s3url := S3Url{Url: s.Source}
-	bucket, err := lookupBucket(s3url.Bucket(), s.Auth)
-	if err != nil {
-		return err
-	}
-
-	sourceFiles := make(map[string]string)
-	sourceFiles, err = loadS3Files(bucket, s3url.Path(), sourceFiles, "")
-	if err != nil {
-		return err
-	}
-
-	targetFiles, err := loadLocalFiles(s.Target)
-	if err != nil {
-		return err
-	}
-	return s.concurrentSyncS3ToDir(s3url, bucket, targetFiles, sourceFiles)
-}
-
-func (s *Sync) concurrentSyncS3ToDir(s3url S3Url, bucket *s3.Bucket, targetFiles, sourceFiles map[string]string) error {
-	doneChan := newDoneChan(s.Concurrent)
-	pool := newPool(s.Concurrent)
-	var wg sync.WaitGroup
-
-	for file, _ := range sourceFiles {
-		if targetFiles[file] != sourceFiles[file] {
-			filePath := strings.Join([]string{s.Target, file}, "/")
-			if filepath.Dir(filePath) != "." {
-				err := os.MkdirAll(filepath.Dir(filePath), 0755)
-				if err != nil {
-					return err
-				}
-			}
-
-			// Get transfer reservation from pool
-			log.Tracef("Requesting reservation for '%s'.", filePath)
-			<-pool
-			log.Tracef("Retrieved reservation for '%s'.", filePath)
-
-			log.Infof("Starting sync: s3://%s/%s -> %s.", bucket.Name, file, filePath)
-			wg.Add(1)
-			go func(doneChan chan error, filePath string, bucket *s3.Bucket, file string) {
-				defer wg.Done()
-				getRoutine(doneChan, filePath, bucket, file)
-				pool <- 1
-			}(doneChan, filePath, bucket, file)
-		}
-	}
-
-	wg.Wait()
-	return nil
 }
 
 func loadS3Files(bucket *s3.Bucket, path string, files map[string]string, marker string) (map[string]string, error) {
@@ -276,24 +168,6 @@ func pathExists(path string) bool {
 		return false
 	}
 	return false
-}
-
-func putRoutine(doneChan chan error, filePath string, bucket *s3.Bucket, file string) {
-	err := Put(bucket, file, filePath)
-	if err != nil {
-		doneChan <- err
-	}
-	log.Infof("Sync completed successfully: %s -> s3://%s/%s.", filePath, bucket.Name, file)
-	doneChan <- nil
-}
-
-func getRoutine(doneChan chan error, filePath string, bucket *s3.Bucket, file string) {
-	err := Get(filePath, bucket, file)
-	if err != nil {
-		doneChan <- err
-	}
-	log.Infof("Sync completed successfully: s3://%s/%s -> %s.", bucket.Name, file, filePath)
-	doneChan <- nil
 }
 
 func waitForRoutines(routines []chan string) {
