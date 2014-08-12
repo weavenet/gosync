@@ -135,6 +135,10 @@ func loadLocalFiles(path string) (map[string]string, error) {
 }
 
 func (s *Sync) validPair() bool {
+	if !validS3Url(s.Source) || !validS3Url(s.Target) {
+		return false
+	}
+
 	if validTarget(s.Source) && validTarget(s.Target) {
 		return true
 	}
