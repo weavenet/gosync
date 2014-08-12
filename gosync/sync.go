@@ -35,9 +35,9 @@ func (s *Sync) Sync() error {
 		return errors.New("Invalid sync pair.")
 	}
 
-	//if validS3Url(s.Source) && validS3Url(s.Target) {
-	//	return s.syncS3ToS3()
-	//}
+	if validS3Url(s.Source) && validS3Url(s.Target) {
+		return s.syncS3ToS3()
+	}
 
 	if validS3Url(s.Source) {
 		return s.syncS3ToDir()
