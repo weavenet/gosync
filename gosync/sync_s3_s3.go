@@ -19,14 +19,22 @@ func (s *Sync) syncS3ToS3() error {
 		return err
 	}
 
-	sourceFiles := make(map[string]string)
-	sourceFiles, err = loadS3Files(sourceBucket, sourceS3Url.Path(), sourceFiles, "")
+	targetS3Url := newS3Url(s.Target)
+	targetBucket, err := lookupBucket(targetS3Url.Bucket(), s.Auth)
 	if err != nil {
 		return err
 	}
 
-	targetS3Url := newS3Url(s.Target)
-	targetBucket, err := lookupBucket(targetS3Url.Bucket(), s.Auth)
+	return s.concurrentSyncS3ToS3(sourceS3Url, targetS3Url, sourceBucket, targetBucket)
+}
+
+func (s *Sync) concurrentSyncS3ToS3(sourceS3Url, targetS3Url s3Url, sourceBucket, targetBucket *s3.Bucket) error {
+	doneChan := newDoneChan(s.Concurrent)
+	pool := newPool(s.Concurrent)
+	var wg sync.WaitGroup
+
+	sourceFiles := make(map[string]string)
+	sourceFiles, err := loadS3Files(sourceBucket, sourceS3Url.Path(), sourceFiles, "")
 	if err != nil {
 		return err
 	}
@@ -36,10 +44,6 @@ func (s *Sync) syncS3ToS3() error {
 	if err != nil {
 		return err
 	}
-
-	doneChan := newDoneChan(s.Concurrent)
-	pool := newPool(s.Concurrent)
-	var wg sync.WaitGroup
 
 	for file, _ := range sourceFiles {
 		if targetFiles[file] != sourceFiles[file] {
