@@ -1,5 +1,7 @@
 # HEAD
 
+# 0.0.4
+
 * Added support for S3 to S3 syncing
 * Internal refactor
 
