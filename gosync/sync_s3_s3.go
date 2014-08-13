@@ -33,22 +33,23 @@ func (s *SyncPair) concurrentSyncS3ToS3(sourceS3Url, targetS3Url s3Url, sourceBu
 	pool := newPool(s.Concurrent)
 	var wg sync.WaitGroup
 
-	sourceFiles := make(map[string]string)
-	sourceFiles, err := loadS3Files(sourceBucket, sourceS3Url.Path(), sourceFiles, "")
+	sourceFiles, err := loadS3Files(sourceBucket, sourceS3Url.Path(), make(map[string]string), "")
 	if err != nil {
 		return err
 	}
 
-	targetFiles := make(map[string]string)
-	targetFiles, err = loadS3Files(targetBucket, targetS3Url.Path(), targetFiles, "")
+	targetFiles, err := loadS3Files(targetBucket, targetS3Url.Path(), make(map[string]string), "")
 	if err != nil {
 		return err
 	}
 
 	for file, _ := range sourceFiles {
-		if targetFiles[file] != sourceFiles[file] {
-			sourceKeyPath := strings.Join([]string{sourceS3Url.Key(), file}, "/")
-			targetKeyPath := strings.Join([]string{targetS3Url.Key(), file}, "/")
+		// ensure the file has no leading slashes to it compares correctly
+		relativeTargetFile := strings.TrimLeft(strings.Join([]string{targetS3Url.Path(), file}, "/"), "/")
+
+		if targetFiles[relativeTargetFile] != sourceFiles[file] {
+			sourceKeyPath := file
+			targetKeyPath := strings.Join([]string{targetS3Url.Key(), sourceKeyPath}, "/")
 
 			// Get transfer reservation from pool
 			log.Tracef("Requesting reservation for '%s'.", file)

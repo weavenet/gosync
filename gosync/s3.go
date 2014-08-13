@@ -39,6 +39,7 @@ func (r *s3Url) keys() []string {
 }
 
 func loadS3Files(bucket *s3.Bucket, path string, files map[string]string, marker string) (map[string]string, error) {
+	log.Debugf("Loading files from 's3://%s/%s'.", bucket.Name, path)
 	data, err := bucket.List(path, "", marker, 0)
 	if err != nil {
 		return files, err
@@ -57,8 +58,7 @@ func loadS3Files(bucket *s3.Bucket, path string, files map[string]string, marker
 		loadS3Files(bucket, path, files, lastKey)
 	}
 
-	log.Debugf("Loaded '%d' files from S3.", len(files))
-	log.Infof("Loading files from S3 complete.")
+	log.Debugf("Loaded '%d' files from 's3://%s/%s' succesfully.", len(files), bucket.Name, path)
 	return files, nil
 }
 

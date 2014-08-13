@@ -43,7 +43,10 @@ func (s *SyncPair) concurrentSyncDirToS3(s3url s3Url, bucket *s3.Bucket, targetF
 	var wg sync.WaitGroup
 
 	for file, _ := range sourceFiles {
-		if targetFiles[file] != sourceFiles[file] {
+		// ensure the file has no leading slashes to it compares correctly
+		relativeTargetFile := strings.TrimLeft(strings.Join([]string{s3url.Path(), file}, "/"), "/")
+
+		if targetFiles[relativeTargetFile] != sourceFiles[file] {
 			filePath := strings.Join([]string{s.Source, file}, "/")
 			keyPath := strings.Join([]string{s3url.Key(), file}, "/")
 
