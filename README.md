@@ -36,6 +36,14 @@ Set environment variables:
 
     gosync s3://bucket/files /files
 
+## Syncing from S3 to S3
+
+    gosync s3://source_bucket s3://target_bucket
+
+## Syncing from S3 to another directory in S3
+
+    gosync s3://source_bucket/some_files s3://target_bucket/another_dir
+
 ## Help
 
 For full list of options and commands:
