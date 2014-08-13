@@ -4,6 +4,10 @@
 
 I want to be the fastest way to concurrently sync files and directories to/from S3.
 
+Gosync will concurrently transfer your files to and from S3 (or across different S3 
+buckets). It will validate checksyms to ensure that only new or changed files are
+synced.
+
 # Installation
 
 Ensure you have Go 1.2 or greater installed and your GOPATH is set.
