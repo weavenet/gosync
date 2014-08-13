@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	log "github.com/cihub/seelog"
 )
@@ -50,4 +51,12 @@ func pathExists(path string) bool {
 		return false
 	}
 	return false
+}
+
+func relativePath(path string, filePath string) string {
+	if path == "." {
+		return strings.TrimPrefix(filePath, "/")
+	} else {
+		return strings.TrimPrefix(strings.TrimPrefix(filePath, path), "/")
+	}
 }

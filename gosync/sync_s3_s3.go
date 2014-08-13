@@ -10,7 +10,7 @@ import (
 	"github.com/mitchellh/goamz/s3"
 )
 
-func (s *Sync) syncS3ToS3() error {
+func (s *SyncPair) syncS3ToS3() error {
 	log.Infof("Syncing from S3 to S3.")
 
 	sourceS3Url := newS3Url(s.Source)
@@ -28,7 +28,7 @@ func (s *Sync) syncS3ToS3() error {
 	return s.concurrentSyncS3ToS3(sourceS3Url, targetS3Url, sourceBucket, targetBucket)
 }
 
-func (s *Sync) concurrentSyncS3ToS3(sourceS3Url, targetS3Url s3Url, sourceBucket, targetBucket *s3.Bucket) error {
+func (s *SyncPair) concurrentSyncS3ToS3(sourceS3Url, targetS3Url s3Url, sourceBucket, targetBucket *s3.Bucket) error {
 	doneChan := newDoneChan(s.Concurrent)
 	pool := newPool(s.Concurrent)
 	var wg sync.WaitGroup

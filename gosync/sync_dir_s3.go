@@ -11,7 +11,7 @@ import (
 	"github.com/mitchellh/goamz/s3"
 )
 
-func (s *Sync) syncDirToS3() error {
+func (s *SyncPair) syncDirToS3() error {
 	log.Infof("Syncing to S3.")
 
 	sourceFiles, err := loadLocalFiles(s.Source)
@@ -37,7 +37,7 @@ func (s *Sync) syncDirToS3() error {
 	return s.concurrentSyncDirToS3(s3url, bucket, targetFiles, sourceFiles)
 }
 
-func (s *Sync) concurrentSyncDirToS3(s3url s3Url, bucket *s3.Bucket, targetFiles, sourceFiles map[string]string) error {
+func (s *SyncPair) concurrentSyncDirToS3(s3url s3Url, bucket *s3.Bucket, targetFiles, sourceFiles map[string]string) error {
 	doneChan := newDoneChan(s.Concurrent)
 	pool := newPool(s.Concurrent)
 	var wg sync.WaitGroup

@@ -41,12 +41,12 @@ func main() {
 		target := c.Args()[1]
 		log.Infof("Setting target to '%s'.", target)
 
-		sync := gosync.NewSync(auth, source, target)
+		syncPair := gosync.NewSyncPair(auth, source, target)
 
-		sync.Concurrent = c.Int("concurrent")
-		log.Infof("Setting concurrent transfers to '%d'.", sync.Concurrent)
+		syncPair.Concurrent = c.Int("concurrent")
+		log.Infof("Setting concurrent transfers to '%d'.", syncPair.Concurrent)
 
-		err = sync.Sync()
+		err = syncPair.Sync()
 		exitOnError(err)
 
 		log.Infof("Syncing completed successfully.")

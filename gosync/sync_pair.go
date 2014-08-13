@@ -4,19 +4,18 @@ import (
 	"errors"
 	"strings"
 
-	log "github.com/cihub/seelog"
 	"github.com/mitchellh/goamz/aws"
 )
 
-type Sync struct {
+type SyncPair struct {
 	Auth       aws.Auth
 	Source     string
 	Target     string
 	Concurrent int
 }
 
-func NewSync(auth aws.Auth, source string, target string) *Sync {
-	return &Sync{
+func NewSyncPair(auth aws.Auth, source string, target string) *SyncPair {
+	return &SyncPair{
 		Auth:       auth,
 		Source:     source,
 		Target:     target,
@@ -24,7 +23,7 @@ func NewSync(auth aws.Auth, source string, target string) *Sync {
 	}
 }
 
-func (s *Sync) Sync() error {
+func (s *SyncPair) Sync() error {
 	if !s.validPair() {
 		return errors.New("Invalid sync pair.")
 	}
@@ -40,8 +39,8 @@ func (s *Sync) Sync() error {
 	return s.syncDirToS3()
 }
 
-func (s *Sync) validPair() bool {
-	if !validS3Url(s.Source) || !validS3Url(s.Target) {
+func (s *SyncPair) validPair() bool {
+	if !validS3Url(s.Source) && !validS3Url(s.Target) {
 		return false
 	}
 
@@ -67,35 +66,4 @@ func validTarget(target string) bool {
 
 func validS3Url(path string) bool {
 	return strings.HasPrefix(path, "s3://")
-}
-
-func waitForRoutines(routines []chan string) {
-	for _, r := range routines {
-		msg := <-r
-		log.Infof("%s", msg)
-	}
-}
-
-func relativePath(path string, filePath string) string {
-	if path == "." {
-		return strings.TrimPrefix(filePath, "/")
-	} else {
-		return strings.TrimPrefix(strings.TrimPrefix(filePath, path), "/")
-	}
-}
-
-func newDoneChan(concurrent int) chan error {
-	// Panic on any errors
-	doneChan := make(chan error, concurrent)
-	go func() {
-		for {
-			select {
-			case err := <-doneChan:
-				if err != nil {
-					panic(err.Error())
-				}
-			}
-		}
-	}()
-	return doneChan
 }
