@@ -18,8 +18,8 @@ func main() {
 	app.Usage = "gosync OPTIONS SOURCE TARGET"
 	app.Version = version.Version()
 	app.Flags = []cli.Flag{
-		cli.IntFlag{"concurrent, c", 20, "number of concurrent transfers", ""},
-		cli.StringFlag{"log-level, l", "info", "log level", ""},
+		cli.IntFlag{"concurrent, c", 20, "number of concurrent transfers"},
+		cli.StringFlag{"log-level, l", "info", "log level"},
 	}
 
 	const concurrent = 20
