@@ -70,7 +70,7 @@ func exitOnError(e error) {
 }
 
 func setLogLevel(level string) {
-	if level != "info" {
+	if level != "error" && level != "warn" {
 		log.Infof("Setting log level '%s'.", level)
 	}
 	logConfig := fmt.Sprintf("<seelog minlevel='%s'>", level)
