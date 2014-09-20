@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/brettweavnet/gosync/gosync"
 	"github.com/brettweavnet/gosync/version"
@@ -35,9 +34,9 @@ func main() {
 		err := validateArgs(c)
 		exitOnError(err)
 
-		key := strings.TrimSpace(c.String("aws-access-key-id"))
-		secret := strings.TrimSpace(c.String("aws-secret-access-key"))
-		token := strings.TrimSpace(c.String("aws-security-token"))
+		key := c.String("aws-access-key-id")
+		secret := c.String("aws-secret-access-key")
+		token := c.String("aws-security-token")
 
 		auth, err := aws.GetAuth(key, secret)
 		exitOnError(err)
