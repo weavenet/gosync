@@ -20,6 +20,9 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.IntFlag{"concurrent, c", 20, "number of concurrent transfers", ""},
 		cli.StringFlag{"log-level, l", "info", "log level", ""},
+		cli.StringFlag{"aws-secret-access-key", "", "AWS Secret Access Key", ""},
+		cli.StringFlag{"aws-access-key-id", "", "AWS Access Key Id", ""},
+		cli.StringFlag{"aws-security-token", "", "AWS Security Token", ""},
 	}
 
 	const concurrent = 20
@@ -31,9 +34,15 @@ func main() {
 		err := validateArgs(c)
 		exitOnError(err)
 
-		log.Debugf("Reading AWS credentials from AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
-		auth, err := aws.EnvAuth()
+		key := c.String("aws-access-key-id")
+		secret := c.String("aws-secret-access-key")
+		token := c.String("aws-security-token")
+
+		auth, err := aws.GetAuth(key, secret)
 		exitOnError(err)
+		if token != "" {
+			auth.Token = token
+		}
 
 		source := c.Args()[0]
 		log.Infof("Setting source to '%s'.", source)

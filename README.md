@@ -23,10 +23,11 @@ Change into the gosync directory and run make:
 
 # Setup
 
-Set environment variables:
+Set environment variables (Security Token is optional):
 
     AWS_SECRET_ACCESS_KEY=yyy
     AWS_ACCESS_KEY_ID=xxx
+    AWS_SECURITY_TOKEN=xxx
 
 # Usage
 
