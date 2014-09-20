@@ -69,7 +69,14 @@ func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket, error) {
 
 	// Looking in each region for bucket
 	// To do, make this less crusty and ghetto
+
 	for region, _ := range aws.Regions {
+		// Current does not support gov region or china
+		if region == "us-gov-west-1" || region == "cn-north-1" {
+			log.Debugf("Skipping %s", region)
+			continue
+		}
+
 		log.Debugf("Looking for bucket '%s' in '%s'.", bucketName, region)
 		s3 := s3.New(auth, aws.Regions[region])
 		b := s3.Bucket(bucketName)
