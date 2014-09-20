@@ -65,7 +65,7 @@ func main() {
 
 func validateArgs(c *cli.Context) error {
 	if len(c.Args()) != 2 {
-		return fmt.Errorf("S3 URL and local directory required.")
+		return fmt.Errorf("Source and target required.")
 	}
 	return nil
 }
