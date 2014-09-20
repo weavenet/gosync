@@ -1,13 +1,21 @@
+base_dir = `pwd`
+gopath = "$(base_dir)/vendor:$(GOPATH)"
+
 all: fmt deps test
 	@echo "Building."
 	@mkdir -p bin/
-	go build -v -o bin/gosync .
+	@env GOPATH=$(gopath) go build -v -o bin/gosync .
+clean:
+	@echo "Cleaning."
+	@rm -rf bin pkg vendor/pkg
 deps:
 	@echo "Getting Dependencies."
-	go get -d -v ./...
-test: deps
-	@echo "Testing."
-	go test ./...
+	@env GOPATH=$(gopath) go get -d -v ./...
 fmt:
 	@echo "Formatting."
 	gofmt -w .
+test: deps
+	@echo "Testing."
+	@env GOPATH=$(gopath) go test ./gosync/...
+
+.PHONY: all clean deps fmt test
