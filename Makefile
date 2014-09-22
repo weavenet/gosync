@@ -11,6 +11,10 @@ clean:
 deps:
 	@echo "Getting Dependencies."
 	@env GOPATH=$(gopath) go get -d -v ./...
+	@echo "==> Removing .git, .bzr, and .hg from third_party."
+	@find ./vendor -type d -name .git | xargs rm -rf
+	@find ./vendor -type d -name .bzr | xargs rm -rf
+	@find ./vendor -type d -name .hg | xargs rm -rf
 fmt:
 	@echo "Formatting."
 	gofmt -w .
