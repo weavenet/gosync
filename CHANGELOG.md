@@ -1,5 +1,9 @@
 # HEAD
 
+# 0.0.5
+
+* Bug fix in bucket name parsing
+
 # 0.0.4
 
 * Added support for S3 to S3 syncing
