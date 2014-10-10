@@ -62,7 +62,7 @@ func (method *methodType) suiteName() string {
 }
 
 func (method *methodType) String() string {
-	return method.suiteName()+"."+method.Info.Name
+	return method.suiteName() + "." + method.Info.Name
 }
 
 func (method *methodType) matches(re *regexp.Regexp) bool {
@@ -72,15 +72,15 @@ func (method *methodType) matches(re *regexp.Regexp) bool {
 }
 
 type C struct {
-	method    *methodType
-	kind      funcKind
-	status    funcStatus
-	logb      *logger
-	logw      io.Writer
-	done      chan *C
-	reason    string
-	mustFail  bool
-	tempDir   *tempDir
+	method   *methodType
+	kind     funcKind
+	status   funcStatus
+	logb     *logger
+	logw     io.Writer
+	done     chan *C
+	reason   string
+	mustFail bool
+	tempDir  *tempDir
 	timer
 }
 
@@ -913,4 +913,3 @@ func renderCallHeader(label string, c *C, prefix, suffix string) string {
 	return fmt.Sprintf("%s%s: %s: %s%s", prefix, label, niceFuncPath(pc),
 		niceFuncName(pc), suffix)
 }
-

@@ -34,7 +34,7 @@ func (r *s3Url) Valid() bool {
 }
 
 func (r *s3Url) keys() []string {
-	trimmed_string := strings.TrimLeft(r.Url, "s3://")
+	trimmed_string := strings.TrimPrefix(r.Url, "s3://")
 	return strings.Split(trimmed_string, "/")
 }
 
