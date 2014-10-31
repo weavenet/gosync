@@ -14,9 +14,10 @@ import (
 func loadLocalFiles(path string) (map[string]string, error) {
 	files := map[string]string{}
 
+	regulatedPath := filepath.ToSlash(path)
 	loadMd5Sums := func(filePath string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
-			p := relativePath(path, filePath)
+			p := relativePath(regulatedPath, filepath.ToSlash(filePath))
 
 			buf, err := ioutil.ReadFile(filePath)
 			if err != nil {
