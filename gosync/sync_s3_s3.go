@@ -14,13 +14,13 @@ func (s *SyncPair) syncS3ToS3() error {
 	log.Infof("Syncing from S3 to S3.")
 
 	sourceS3Url := newS3Url(s.Source)
-	sourceBucket, err := lookupBucket(sourceS3Url.Bucket(), s.Auth)
+	sourceBucket, err := lookupBucket(sourceS3Url.Bucket(), s.Auth, s.Region)
 	if err != nil {
 		return err
 	}
 
 	targetS3Url := newS3Url(s.Target)
-	targetBucket, err := lookupBucket(targetS3Url.Bucket(), s.Auth)
+	targetBucket, err := lookupBucket(targetS3Url.Bucket(), s.Auth, s.Region)
 	if err != nil {
 		return err
 	}

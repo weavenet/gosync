@@ -15,7 +15,7 @@ func (s *SyncPair) syncS3ToDir() error {
 	log.Infof("Syncing from S3.")
 
 	s3url := newS3Url(s.Source)
-	bucket, err := lookupBucket(s3url.Bucket(), s.Auth)
+	bucket, err := lookupBucket(s3url.Bucket(), s.Auth, s.Region)
 	if err != nil {
 		return err
 	}

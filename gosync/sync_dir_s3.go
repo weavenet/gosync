@@ -22,7 +22,7 @@ func (s *SyncPair) syncDirToS3() error {
 	s3url := newS3Url(s.Target)
 	path := s3url.Path()
 
-	bucket, err := lookupBucket(s3url.Bucket(), s.Auth)
+	bucket, err := lookupBucket(s3url.Bucket(), s.Auth, s.Region)
 	if err != nil {
 		return err
 	}

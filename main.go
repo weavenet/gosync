@@ -18,11 +18,12 @@ func main() {
 	app.Usage = "gosync OPTIONS SOURCE TARGET"
 	app.Version = version.Version()
 	app.Flags = []cli.Flag{
-		cli.IntFlag{"concurrent, c", 20, "number of concurrent transfers", ""},
-		cli.StringFlag{"log-level, l", "info", "log level", ""},
-		cli.StringFlag{"aws-secret-access-key", "", "AWS Secret Access Key", ""},
-		cli.StringFlag{"aws-access-key-id", "", "AWS Access Key Id", ""},
-		cli.StringFlag{"aws-security-token", "", "AWS Security Token", ""},
+		cli.IntFlag{Name: "concurrent, c", Value: 20, Usage: "number of concurrent transfers"},
+		cli.StringFlag{Name: "log-level, l", Value: "info", Usage: "log level"},
+		cli.StringFlag{Name: "aws-secret-access-key", Value: "", Usage: "AWS Secret Access Key"},
+		cli.StringFlag{Name: "aws-access-key-id", Value: "", Usage: "AWS Access Key Id"},
+		cli.StringFlag{Name: "aws-security-token", Value: "", Usage: "AWS Security Token"},
+		cli.StringFlag{Name: "aws-region", Value: "", Usage: "AWS Region"},
 	}
 
 	const concurrent = 20
@@ -37,6 +38,7 @@ func main() {
 		key := c.String("aws-access-key-id")
 		secret := c.String("aws-secret-access-key")
 		token := c.String("aws-security-token")
+		region := c.String("aws-region")
 
 		auth, err := aws.GetAuth(key, secret)
 		exitOnError(err)
@@ -50,7 +52,7 @@ func main() {
 		target := c.Args()[1]
 		log.Infof("Setting target to '%s'.", target)
 
-		syncPair := gosync.NewSyncPair(auth, source, target)
+		syncPair := gosync.NewSyncPair(auth, source, target, region)
 
 		syncPair.Concurrent = c.Int("concurrent")
 		log.Infof("Setting concurrent transfers to '%d'.", syncPair.Concurrent)
