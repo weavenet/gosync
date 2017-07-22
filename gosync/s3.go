@@ -65,8 +65,6 @@ func loadS3Files(bucket *s3.Bucket, path string, files map[string]string, marker
 func lookupBucket(bucketName string, auth aws.Auth, region string) (*s3.Bucket, error) {
 	log.Infof("Looking up region for bucket '%s'.", bucketName)
 
-	var bucket *s3.Bucket = nil
-
 	if(region != "") {
 		log.Debugf("Looking for bucket '%s' in '%s'.", bucketName, region)
 		s3 := s3.New(auth, aws.Regions[region])
@@ -92,13 +90,13 @@ func lookupBucket(bucketName string, auth aws.Auth, region string) (*s3.Bucket, 
 
 		log.Debugf("Looking for bucket '%s' in '%s'.", bucketName, lregion)
 		s3 := s3.New(auth, aws.Regions[lregion])
-		b := s3.Bucket(bucketName)
+		bucket := s3.Bucket(bucketName)
 
 		// If list return, bucket is valid in this lregion.
-		_, err := b.List("", "", "", 0)
+		_, err := bucket.List("", "", "", 0)
 		if err == nil {
 			log.Infof("Found bucket '%s' in '%s'.", bucketName, lregion)
-			return b, nil
+			return bucket, nil
 		} else if strings.Contains(err.Error(), "301 response missing Location header") {
 			log.Debugf("Bucket '%s' not found in '%s'.", bucketName, lregion)
 			continue
