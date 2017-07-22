@@ -37,7 +37,7 @@ func TestValidSyncPair(t *testing.T) {
 
 	for _, tc := range syncPairTCs {
 		auth := aws.Auth{}
-		sp := NewSyncPair(auth, tc.source, tc.target)
+		sp := NewSyncPair(auth, tc.source, tc.target, "regionX")
 		if sp.validPair() != tc.valid {
 			t.Fatalf("Error testing sync pair validity for %s -> %s", tc.source, tc.target)
 		}

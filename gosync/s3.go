@@ -62,41 +62,47 @@ func loadS3Files(bucket *s3.Bucket, path string, files map[string]string, marker
 	return files, nil
 }
 
-func lookupBucket(bucketName string, auth aws.Auth) (*s3.Bucket, error) {
+func lookupBucket(bucketName string, auth aws.Auth, region string) (*s3.Bucket, error) {
 	log.Infof("Looking up region for bucket '%s'.", bucketName)
 
-	var bucket *s3.Bucket = nil
+	if(region != "") {
+		log.Debugf("Looking for bucket '%s' in '%s'.", bucketName, region)
+		s3 := s3.New(auth, aws.Regions[region])
+		bucket := s3.Bucket(bucketName)
+
+		// If list return, bucket is valid in this region.
+		_, err := bucket.List("", "", "", 0)
+		if err == nil {
+			log.Infof("Found bucket '%s' in '%s'.", bucketName, region)
+			return bucket, nil
+		}
+	}
 
 	// Looking in each region for bucket
 	// To do, make this less crusty and ghetto
 
-	for region, _ := range aws.Regions {
-		// Current does not support gov region or china
-		if region == "us-gov-west-1" || region == "cn-north-1" {
-			log.Debugf("Skipping %s", region)
+	for lregion, _ := range aws.Regions {
+		// Current does not support gov lregion or china
+		if lregion == "us-gov-west-1" || lregion == "cn-north-1" {
+			log.Debugf("Skipping %s", lregion)
 			continue
 		}
 
-		log.Debugf("Looking for bucket '%s' in '%s'.", bucketName, region)
-		s3 := s3.New(auth, aws.Regions[region])
-		b := s3.Bucket(bucketName)
+		log.Debugf("Looking for bucket '%s' in '%s'.", bucketName, lregion)
+		s3 := s3.New(auth, aws.Regions[lregion])
+		bucket := s3.Bucket(bucketName)
 
-		// If list return, bucket is valid in this region.
-		_, err := b.List("", "", "", 0)
+		// If list return, bucket is valid in this lregion.
+		_, err := bucket.List("", "", "", 0)
 		if err == nil {
-			log.Infof("Found bucket '%s' in '%s'.", bucketName, region)
-			bucket = b
-			break
-		} else if err.Error() == "Get : 301 response missing Location header" {
-			log.Debugf("Bucket '%s' not found in '%s'.", bucketName, region)
+			log.Infof("Found bucket '%s' in '%s'.", bucketName, lregion)
+			return bucket, nil
+		} else if strings.Contains(err.Error(), "301 response missing Location header") {
+			log.Debugf("Bucket '%s' not found in '%s'.", bucketName, lregion)
 			continue
 		} else {
 			return nil, err
 		}
-	}
-
-	if bucket != nil {
-		return bucket, nil
 	}
 
 	return nil, fmt.Errorf("Bucket not found.")
